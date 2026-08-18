@@ -227,7 +227,13 @@ export default function IntencionPage({
                 ) : (
                   <DetalleIntencion
                     motivoDonacion={seleccionada.motivoDonacion ?? ""}
-                    centroAcopio={seleccionada.centroAcopio ?? ""}
+                    compromisoIdoneidad={seleccionada.compromisoIdoneidad ?? ""}
+                    condicionAlmacenamiento={seleccionada.condicionAlmacenamiento ?? ""}
+                    fechaEstimadaEntrega={seleccionada.fechaEstimadaEntrega ?? ""}
+                    descripcionGeneralDonacion={seleccionada.descripcionGeneralDonacion ?? ""}
+                    incluyeProductosSensibles={seleccionada.incluyeProductosSensibles ?? ""}
+                    recomendacionesConsumo={seleccionada.recomendacionesConsumo ?? ""}
+                    condicionProducto={seleccionada.condicionProducto ?? ""}
                     declaracionProducto={seleccionada.declaracionProducto ?? ""}
                     documentos={seleccionada.documentos}
                     fotos={seleccionada.fotos}

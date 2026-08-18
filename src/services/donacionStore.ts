@@ -29,7 +29,7 @@ const enrich = (i: Intencion): Donacion => ({
   telefono: "+51 999 000 111",
   direccion: "Av. Ejemplo 123, Lima",
   condicionProducto: "Bueno",
-  condicionAlmacenamiento: "Almacen general",
+  condicionAlmacenamiento: "Temperatura ambiente",
   urgencia: "Media",
   observaciones: "",
   productosResumen: i.productos,

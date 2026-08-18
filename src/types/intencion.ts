@@ -48,13 +48,23 @@ export type UnidadMedida =
   | "saco"
   | "pack";
 
-export type CentroAcopio =
-  | "Lima Central"
-  | "Ate"
-  | "Callao"
-  | "San Juan de Lurigancho"
-  | "Trujillo"
-  | "Arequipa";
+export type CompromisoIdoneidad =
+  | "Producto apto para consumo humano"
+  | "Cumple normativas sanitarias vigentes"
+  | "Caducidad vigente al momento de entrega"
+  | "Empaque y etiquetado en buen estado"
+  | "Almacenado en condiciones adecuadas"
+  | "Libre de contaminantes y alteraciones";
+
+export type CondicionAlmacenamiento =
+  | "Temperatura ambiente"
+  | "Refrigerado (0-8°C)"
+  | "Congelado (-18°C o menos)"
+  | "Lugar fresco y seco"
+  | "Protegido de la luz solar"
+  | "Ventilado";
+
+export type ProductoSensible = "Si" | "No";
 
 export type MotivoDonacion =
   | "Vencimiento proximo"
@@ -172,7 +182,13 @@ export interface Intencion {
   estado: EstadoIntencion;
   productos: ProductoIntencion[];
   motivoDonacion?: MotivoDonacion;
-  centroAcopio?: CentroAcopio;
+  compromisoIdoneidad?: CompromisoIdoneidad;
+  condicionAlmacenamiento?: CondicionAlmacenamiento;
+  fechaEstimadaEntrega?: string;
+  descripcionGeneralDonacion?: string;
+  incluyeProductosSensibles?: ProductoSensible;
+  recomendacionesConsumo?: string;
+  condicionProducto?: string;
   declaracionProducto?: string;
   documentos: DocumentoAdjunto[];
   fotos: FotoAdjunta[];
@@ -238,14 +254,25 @@ export const TIPOLUGAR: TipoLugar[] = [
   "Planta de produccion",
   "Centro de acopio",
 ];
-export const CENTROS_ACOPIO: CentroAcopio[] = [
-  "Lima Central",
-  "Ate",
-  "Callao",
-  "San Juan de Lurigancho",
-  "Trujillo",
-  "Arequipa",
+export const CENTROS_ACOPIO: CompromisoIdoneidad[] = [
+  "Producto apto para consumo humano",
+  "Cumple normativas sanitarias vigentes",
+  "Caducidad vigente al momento de entrega",
+  "Empaque y etiquetado en buen estado",
+  "Almacenado en condiciones adecuadas",
+  "Libre de contaminantes y alteraciones",
 ];
+
+export const CONDICIONES_ALMACENAMIENTO: CondicionAlmacenamiento[] = [
+  "Temperatura ambiente",
+  "Refrigerado (0-8°C)",
+  "Congelado (-18°C o menos)",
+  "Lugar fresco y seco",
+  "Protegido de la luz solar",
+  "Ventilado",
+];
+
+export const PRODUCTOS_SENSIBLES: ProductoSensible[] = ["Si", "No"];
 
 export const MOTIVOS_DONACION: MotivoDonacion[] = [
   "Vencimiento proximo",

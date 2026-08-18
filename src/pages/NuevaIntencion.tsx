@@ -10,12 +10,14 @@ import {
   TIPOS_PRODUCTO,
   UNIDADES,
   type Canal,
-  type CentroAcopio,
+  type CompromisoIdoneidad,
+  type CondicionAlmacenamiento,
   type DocumentoAdjunto,
   type FotoAdjunta,
   type Intencion,
   type MotivoDonacion,
   type ProductoIntencion,
+  type ProductoSensible,
   type Procedencia,
   type TipoIntencion,
   type TipoProducto,
@@ -51,23 +53,23 @@ interface ProductoForm {
   vidaUtil: string;
   tipoProducto: TipoProducto;
   procedencia: Procedencia;
-  tipoLugar:TipoLugar;
-  lugar:string;
-  contactoPlanta:string;
-  direccion:string;
-  referencia:string;
-  distrito:Distrito;
-  provincia:Provincia;
-  departamento:Departamento;
-  codigoPostal:string;
-  tipoAcceso:TipoAcceso;
-  horarioInicio:string;
-  horarioFinal:string;
-  diasAtencion:DiasAtencion[];
+  tipoLugar: TipoLugar;
+  lugar: string;
+  contactoPlanta: string;
+  direccion: string;
+  referencia: string;
+  distrito: Distrito;
+  provincia: Provincia;
+  departamento: Departamento;
+  codigoPostal: string;
+  tipoAcceso: TipoAcceso;
+  horarioInicio: string;
+  horarioFinal: string;
+  diasAtencion: DiasAtencion[];
   requiereAutorizacion: "Si" | "No";
-  anticipacion:Anticipacion;
-  contactoAutorizacion:string;
-  numeroContacto:string;
+  anticipacion: Anticipacion;
+  contactoAutorizacion: string;
+  numeroContacto: string;
   requisitosIngreso: string[];
   fechaDesde: string;
   fechaHasta: string;
@@ -175,7 +177,17 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
   // Detalle
   const [motivoDonacion, setMotivoDonacion] = useState<MotivoDonacion | "">("");
-  const [centroAcopio, setCentroAcopio] = useState<CentroAcopio | "">("");
+  const [compromisoIdoneidad, setCompromisoIdoneidad] =
+    useState<CompromisoIdoneidad | "">("");
+  const [condicionAlmacenamiento, setCondicionAlmacenamiento] =
+    useState<CondicionAlmacenamiento | "">("");
+  const [fechaEstimadaEntrega, setFechaEstimadaEntrega] = useState("");
+  const [descripcionGeneralDonacion, setDescripcionGeneralDonacion] =
+    useState("");
+  const [incluyeProductosSensibles, setIncluyeProductosSensibles] =
+    useState<ProductoSensible | "">("");
+  const [recomendacionesConsumo, setRecomendacionesConsumo] = useState("");
+  const [condicionProducto, setCondicionProducto] = useState("");
   const [declaracionProducto, setDeclaracionProducto] = useState("");
   const [documentos, setDocumentos] = useState<DocumentoAdjunto[]>([]);
   const [fotos, setFotos] = useState<FotoAdjunta[]>([]);
@@ -258,7 +270,14 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
       estado: "Pendiente",
       productos: productosValidos,
       motivoDonacion: motivoDonacion || undefined,
-      centroAcopio: centroAcopio || undefined,
+      compromisoIdoneidad: compromisoIdoneidad || undefined,
+      condicionAlmacenamiento: condicionAlmacenamiento || undefined,
+      fechaEstimadaEntrega: fechaEstimadaEntrega || undefined,
+      descripcionGeneralDonacion:
+        descripcionGeneralDonacion.trim() || undefined,
+      incluyeProductosSensibles: incluyeProductosSensibles || undefined,
+      recomendacionesConsumo: recomendacionesConsumo.trim() || undefined,
+      condicionProducto: condicionProducto.trim() || undefined,
       declaracionProducto: declaracionProducto.trim() || undefined,
       documentos,
       fotos,
@@ -568,6 +587,54 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
             />
           </div>
         </section>
+        {/* Detalle */}
+        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">
+            Información de Calidad
+          </h2>
+          <DetalleIntencion
+            motivoDonacion={motivoDonacion}
+            compromisoIdoneidad={compromisoIdoneidad}
+            condicionAlmacenamiento={condicionAlmacenamiento}
+            fechaEstimadaEntrega={fechaEstimadaEntrega}
+            descripcionGeneralDonacion={descripcionGeneralDonacion}
+            incluyeProductosSensibles={incluyeProductosSensibles}
+            recomendacionesConsumo={recomendacionesConsumo}
+            condicionProducto={condicionProducto}
+            declaracionProducto={declaracionProducto}
+            documentos={documentos}
+            fotos={fotos}
+            editable
+            onChange={(patch) => {
+              if (patch.motivoDonacion !== undefined)
+                setMotivoDonacion(patch.motivoDonacion);
+              if (patch.compromisoIdoneidad !== undefined)
+                setCompromisoIdoneidad(patch.compromisoIdoneidad);
+              if (patch.condicionAlmacenamiento !== undefined)
+                setCondicionAlmacenamiento(patch.condicionAlmacenamiento);
+              if (patch.fechaEstimadaEntrega !== undefined)
+                setFechaEstimadaEntrega(patch.fechaEstimadaEntrega);
+              if (patch.descripcionGeneralDonacion !== undefined)
+                setDescripcionGeneralDonacion(patch.descripcionGeneralDonacion);
+              if (patch.incluyeProductosSensibles !== undefined)
+                setIncluyeProductosSensibles(patch.incluyeProductosSensibles);
+              if (patch.recomendacionesConsumo !== undefined)
+                setRecomendacionesConsumo(patch.recomendacionesConsumo);
+              if (patch.condicionProducto !== undefined)
+                setCondicionProducto(patch.condicionProducto);
+              if (patch.declaracionProducto !== undefined)
+                setDeclaracionProducto(patch.declaracionProducto);
+            }}
+            onAddDocumentos={handleAddDocumentos}
+            onAddFotos={handleAddFotos}
+            onRemoveDocumento={(id) =>
+              setDocumentos((prev) => prev.filter((d) => d.id !== id))
+            }
+            onRemoveFoto={(id) =>
+              setFotos((prev) => prev.filter((f) => f.id !== id))
+            }
+          />
+        </section>
 
         {/* Información Logística */}
         <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -607,7 +674,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                           {u}
                         </option>
                       ))}
-                    </select>                    
+                    </select>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-600">
@@ -853,7 +920,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         </section>
         {/* Información Logística  2*/}
         <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          
+
 
           <div className="space-y-4">
             {productosForm.map((p) => (
@@ -887,31 +954,31 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                           {u}
                         </option>
                       ))}
-                    </select>                    
+                    </select>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-600">
                       Horario de atención
                     </label>
                     <input
-                        type="time"
-                        value={p.horarioInicio}
-                        onChange={(e) => setProductoField(p.id, "horarioInicio", e.target.value)}
+                      type="time"
+                      value={p.horarioInicio}
+                      onChange={(e) => setProductoField(p.id, "horarioInicio", e.target.value)}
                     />
                     <span className="separador">a</span>
                     <input
-                        type="time"
-                        value={p.horarioFinal}
-                        onChange={(e) => setProductoField(p.id, "horarioFinal", e.target.value)}
+                      type="time"
+                      value={p.horarioFinal}
+                      onChange={(e) => setProductoField(p.id, "horarioFinal", e.target.value)}
                     />
                   </div>
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-xs font-medium text-gray-600">
-                        Días de atención
+                      Días de atención
                     </label>
 
                     <div className="flex flex-wrap gap-2">
-                        {[
+                      {[
                         "Lunes",
                         "Martes",
                         "Miércoles",
@@ -919,91 +986,90 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                         "Viernes",
                         "Sábado",
                         "Domingo",
-                        ].map((dia) => {
+                      ].map((dia) => {
                         const seleccionado = p.diasAtencion.includes(
-                            dia as DiasAtencion
+                          dia as DiasAtencion
                         );
 
                         return (
-                            <label
+                          <label
                             key={dia}
-                            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
-                                seleccionado
-                                ? "border-[#5cb89a] bg-[#5cb89a]/10 text-[#318b70]"
-                                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                            }`}
-                            >
+                            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${seleccionado
+                              ? "border-[#5cb89a] bg-[#5cb89a]/10 text-[#318b70]"
+                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                              }`}
+                          >
                             <input
-                                type="checkbox"
-                                checked={seleccionado}
-                                onChange={(e) => {
+                              type="checkbox"
+                              checked={seleccionado}
+                              onChange={(e) => {
                                 const nuevosDias: DiasAtencion[] = e.target.checked
-                                    ? [
-                                        ...p.diasAtencion,
-                                        dia as DiasAtencion,
-                                    ]
-                                    : p.diasAtencion.filter(
-                                        (d) => d !== dia
-                                    );
+                                  ? [
+                                    ...p.diasAtencion,
+                                    dia as DiasAtencion,
+                                  ]
+                                  : p.diasAtencion.filter(
+                                    (d) => d !== dia
+                                  );
 
                                 setProductoField(
-                                    p.id,
-                                    "diasAtencion",
-                                    nuevosDias
+                                  p.id,
+                                  "diasAtencion",
+                                  nuevosDias
                                 );
-                                }}
-                                className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
+                              }}
+                              className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
                             />
 
                             <span>{dia}</span>
-                            </label>
+                          </label>
                         );
-                        })}
+                      })}
                     </div>
-                    </div>
+                  </div>
                   <div>
                     <label className="mb-2 block text-xs font-medium text-gray-600">
-                        ¿Requiere autorización previa?
+                      ¿Requiere autorización previa?
                     </label>
 
                     <div className="flex items-center gap-6">
-                        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
                         <input
-                            type="radio"
-                            name={`autorizacion-${p.id}`}
-                            value="Si"
-                            checked={p.requiereAutorizacion === "Si"}
-                            onChange={(e) =>
+                          type="radio"
+                          name={`autorizacion-${p.id}`}
+                          value="Si"
+                          checked={p.requiereAutorizacion === "Si"}
+                          onChange={(e) =>
                             setProductoField(
-                                p.id,
-                                "requiereAutorizacion",
-                                e.target.value as "Si" | "No"
+                              p.id,
+                              "requiereAutorizacion",
+                              e.target.value as "Si" | "No"
                             )
-                            }
-                            className="h-4 w-4 text-[#5cb89a] focus:ring-[#5cb89a]"
+                          }
+                          className="h-4 w-4 text-[#5cb89a] focus:ring-[#5cb89a]"
                         />
                         Sí
-                        </label>
+                      </label>
 
-                        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
                         <input
-                            type="radio"
-                            name={`autorizacion-${p.id}`}
-                            value="No"
-                            checked={p.requiereAutorizacion === "No"}
-                            onChange={(e) =>
+                          type="radio"
+                          name={`autorizacion-${p.id}`}
+                          value="No"
+                          checked={p.requiereAutorizacion === "No"}
+                          onChange={(e) =>
                             setProductoField(
-                                p.id,
-                                "requiereAutorizacion",
-                                e.target.value as "Si" | "No"
+                              p.id,
+                              "requiereAutorizacion",
+                              e.target.value as "Si" | "No"
                             )
-                            }
-                            className="h-4 w-4 text-[#5cb89a] focus:ring-[#5cb89a]"
+                          }
+                          className="h-4 w-4 text-[#5cb89a] focus:ring-[#5cb89a]"
                         />
                         No
-                        </label>
+                      </label>
                     </div>
-                    </div>
+                  </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-600">
                       Tiempo de anticipación requerida
@@ -1030,7 +1096,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                     <label className="mb-1 block text-xs font-medium text-gray-600">
                       Contacto de autorización
                     </label>
-                    
+
                     <input
                       type="text"
                       value={p.contactoAutorizacion}
@@ -1056,60 +1122,59 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                     />
                   </div>
                   <div className="lg:col-span-4">
-  <label className="mb-2 block text-xs font-medium text-gray-600">
-    Requisitos para el ingreso a planta
-    <span className="ml-1 font-normal text-gray-400">
-      (Selecciona todos los requeridos)
-    </span>
-  </label>
+                    <label className="mb-2 block text-xs font-medium text-gray-600">
+                      Requisitos para el ingreso a planta
+                      <span className="ml-1 font-normal text-gray-400">
+                        (Selecciona todos los requeridos)
+                      </span>
+                    </label>
 
-  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-    {[
-      "DNI vigente",
-      "Carnet de sanidad",
-      "Autorización del donante",
-      "Uso obligatorio de EPP",
-      "Seguro SCTR",
-      "Inducción de seguridad",
-      "Vehículo con sello de fumigación",
-      "Otros requisitos",
-    ].map((requisito) => {
-      const seleccionado = p.requisitosIngreso.includes(requisito);
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {[
+                        "DNI vigente",
+                        "Carnet de sanidad",
+                        "Autorización del donante",
+                        "Uso obligatorio de EPP",
+                        "Seguro SCTR",
+                        "Inducción de seguridad",
+                        "Vehículo con sello de fumigación",
+                        "Otros requisitos",
+                      ].map((requisito) => {
+                        const seleccionado = p.requisitosIngreso.includes(requisito);
 
-      return (
-        <label
-          key={requisito}
-          className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition ${
-            seleccionado
-              ? "border-[#5cb89a] bg-[#5cb89a]/10 text-[#318b70]"
-              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={seleccionado}
-            onChange={(e) => {
-              const nuevosRequisitos = e.target.checked
-                ? [...p.requisitosIngreso, requisito]
-                : p.requisitosIngreso.filter(
-                    (r) => r !== requisito
-                  );
+                        return (
+                          <label
+                            key={requisito}
+                            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition ${seleccionado
+                              ? "border-[#5cb89a] bg-[#5cb89a]/10 text-[#318b70]"
+                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                              }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={seleccionado}
+                              onChange={(e) => {
+                                const nuevosRequisitos = e.target.checked
+                                  ? [...p.requisitosIngreso, requisito]
+                                  : p.requisitosIngreso.filter(
+                                    (r) => r !== requisito
+                                  );
 
-              setProductoField(
-                p.id,
-                "requisitosIngreso",
-                nuevosRequisitos
-              );
-            }}
-            className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
-          />
+                                setProductoField(
+                                  p.id,
+                                  "requisitosIngreso",
+                                  nuevosRequisitos
+                                );
+                              }}
+                              className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
+                            />
 
-          <span>{requisito}</span>
-        </label>
-      );
-    })}
-  </div>
-</div>
+                            <span>{requisito}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1231,36 +1296,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
           </div>
         </section>
 
-        {/* Detalle */}
-        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-base font-semibold text-gray-900">
-            Detalle de la intención
-          </h2>
-          <DetalleIntencion
-            motivoDonacion={motivoDonacion}
-            centroAcopio={centroAcopio}
-            declaracionProducto={declaracionProducto}
-            documentos={documentos}
-            fotos={fotos}
-            editable
-            onChange={(patch) => {
-              if (patch.motivoDonacion !== undefined)
-                setMotivoDonacion(patch.motivoDonacion);
-              if (patch.centroAcopio !== undefined)
-                setCentroAcopio(patch.centroAcopio);
-              if (patch.declaracionProducto !== undefined)
-                setDeclaracionProducto(patch.declaracionProducto);
-            }}
-            onAddDocumentos={handleAddDocumentos}
-            onAddFotos={handleAddFotos}
-            onRemoveDocumento={(id) =>
-              setDocumentos((prev) => prev.filter((d) => d.id !== id))
-            }
-            onRemoveFoto={(id) =>
-              setFotos((prev) => prev.filter((f) => f.id !== id))
-            }
-          />
-        </section>
+
 
         {/* Acciones */}
         <div className="flex justify-end gap-3 pb-6">

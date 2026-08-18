@@ -5,6 +5,7 @@
 
 import type {
   Canal,
+  CondicionAlmacenamiento,
   DocumentoAdjunto,
   FotoAdjunta,
   Intencion,
@@ -107,18 +108,12 @@ export const CONDICIONES_PRODUCTO: CondicionProducto[] = [
   "Vencido",
 ];
 
-export type CondicionAlmacenamiento =
-  | "Refrigerado"
-  | "Congelado"
-  | "Ambiente seco"
-  | "Almacen general";
-
-export const CONDICIONES_ALMACENAMIENTO: CondicionAlmacenamiento[] = [
-  "Refrigerado",
-  "Congelado",
-  "Ambiente seco",
-  "Almacen general",
-];
+// Reutilizamos el tipo CondicionAlmacenamiento definido en ./intencion
+// para mantener compatibilidad con el modelo Donacion extends Intencion.
+export type { CondicionAlmacenamiento } from "./intencion";
+export {
+  CONDICIONES_ALMACENAMIENTO,
+} from "./intencion";
 
 export type Urgencia = "Baja" | "Media" | "Alta" | "Critica";
 

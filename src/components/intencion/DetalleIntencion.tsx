@@ -1,22 +1,41 @@
 import { FileText, Image as ImageIcon, Download, X } from "lucide-react";
 import type {
-  CentroAcopio,
+  CompromisoIdoneidad,
+  CondicionAlmacenamiento,
   DocumentoAdjunto,
   FotoAdjunta,
   MotivoDonacion,
+  ProductoSensible,
 } from "../../types/intencion";
-import { CENTROS_ACOPIO, MOTIVOS_DONACION } from "../../types/intencion";
+import {
+  CENTROS_ACOPIO,
+  CONDICIONES_ALMACENAMIENTO,
+  MOTIVOS_DONACION,
+  PRODUCTOS_SENSIBLES,
+} from "../../types/intencion";
 
 interface Props {
   motivoDonacion: MotivoDonacion | "";
-  centroAcopio: CentroAcopio | "";
+  compromisoIdoneidad: CompromisoIdoneidad | "";
+  condicionAlmacenamiento: CondicionAlmacenamiento | "";
+  fechaEstimadaEntrega: string;
+  descripcionGeneralDonacion: string;
+  incluyeProductosSensibles: ProductoSensible | "";
+  recomendacionesConsumo: string;
+  condicionProducto: string;
   declaracionProducto: string;
   documentos: DocumentoAdjunto[];
   fotos: FotoAdjunta[];
   editable?: boolean;
   onChange?: (patch: {
     motivoDonacion?: MotivoDonacion;
-    centroAcopio?: CentroAcopio;
+    compromisoIdoneidad?: CompromisoIdoneidad;
+    condicionAlmacenamiento?: CondicionAlmacenamiento;
+    fechaEstimadaEntrega?: string;
+    descripcionGeneralDonacion?: string;
+    incluyeProductosSensibles?: ProductoSensible;
+    recomendacionesConsumo?: string;
+    condicionProducto?: string;
     declaracionProducto?: string;
   }) => void;
   onAddDocumentos?: (files: FileList) => void;
@@ -30,7 +49,13 @@ const formatKb = (kb: number) =>
 
 export default function DetalleIntencion({
   motivoDonacion,
-  centroAcopio,
+  compromisoIdoneidad,
+  condicionAlmacenamiento,
+  fechaEstimadaEntrega,
+  descripcionGeneralDonacion,
+  incluyeProductosSensibles,
+  recomendacionesConsumo,
+  condicionProducto,
   declaracionProducto,
   documentos,
   fotos,
@@ -72,17 +97,19 @@ export default function DetalleIntencion({
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-800">
-            Centro de acopio
+            Compromiso de idoneidad del producto
           </label>
           {editable ? (
             <select
-              value={centroAcopio}
+              value={compromisoIdoneidad}
               onChange={(e) =>
-                onChange?.({ centroAcopio: e.target.value as CentroAcopio })
+                onChange?.({
+                  compromisoIdoneidad: e.target.value as CompromisoIdoneidad,
+                })
               }
               className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
             >
-              <option value="">Seleccionar centro</option>
+              <option value="">Seleccionar compromiso</option>
               {CENTROS_ACOPIO.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -91,10 +118,149 @@ export default function DetalleIntencion({
             </select>
           ) : (
             <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
-              {centroAcopio || "Sin asignar"}
+              {compromisoIdoneidad || "Sin asignar"}
             </div>
           )}
         </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-800">
+            Condicion de almacenamiento
+          </label>
+          {editable ? (
+            <select
+              value={condicionAlmacenamiento}
+              onChange={(e) =>
+                onChange?.({
+                  condicionAlmacenamiento:
+                    e.target.value as CondicionAlmacenamiento,
+                })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
+            >
+              <option value="">Seleccionar condicion</option>
+              {CONDICIONES_ALMACENAMIENTO.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+              {condicionAlmacenamiento || "Sin especificar"}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-800">
+            Fecha estimada de entrega
+          </label>
+          {editable ? (
+            <input
+              type="date"
+              value={fechaEstimadaEntrega}
+              onChange={(e) =>
+                onChange?.({ fechaEstimadaEntrega: e.target.value })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
+            />
+          ) : (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+              {fechaEstimadaEntrega || "Sin fecha estimada"}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-800">
+            La donacion incluye productos sensibles
+          </label>
+          {editable ? (
+            <select
+              value={incluyeProductosSensibles}
+              onChange={(e) =>
+                onChange?.({
+                  incluyeProductosSensibles:
+                    e.target.value as ProductoSensible,
+                })
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
+            >
+              <option value="">Seleccionar opcion</option>
+              {PRODUCTOS_SENSIBLES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+              {incluyeProductosSensibles || "Sin especificar"}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-gray-800">
+          Descripcion general de la donacion
+        </label>
+        {editable ? (
+          <textarea
+            value={descripcionGeneralDonacion}
+            onChange={(e) =>
+              onChange?.({ descripcionGeneralDonacion: e.target.value })
+            }
+            rows={3}
+            placeholder="Describe de forma general la donacion, su alcance y finalidad..."
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
+          />
+        ) : (
+          <div className="min-h-[60px] whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+            {descripcionGeneralDonacion || "Sin descripcion registrada."}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-gray-800">
+          Recomendaciones de consumo y especificaciones tecnicas (si aplica)
+        </label>
+        {editable ? (
+          <textarea
+            value={recomendacionesConsumo}
+            onChange={(e) =>
+              onChange?.({ recomendacionesConsumo: e.target.value })
+            }
+            rows={3}
+            placeholder="Indica recomendaciones de consumo, especificaciones tecnicas u observaciones relevantes..."
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
+          />
+        ) : (
+          <div className="min-h-[60px] whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+            {recomendacionesConsumo || "Sin recomendaciones registradas."}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-gray-800">
+          Condicion del producto (estado fisico, apariencia, etiquetado, empaque o envase)
+        </label>
+        {editable ? (
+          <textarea
+            value={condicionProducto}
+            onChange={(e) => onChange?.({ condicionProducto: e.target.value })}
+            rows={4}
+            placeholder="Describe el estado fisico y apariencia del producto, etiquetado, empaque o envase..."
+            className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
+          />
+        ) : (
+          <div className="min-h-[80px] whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+            {condicionProducto || "Sin condicion registrada."}
+          </div>
+        )}
       </div>
 
       <div>
