@@ -204,7 +204,7 @@ export default function DetalleIntencion({
 
       <div>
         <label className="mb-1.5 block text-sm font-medium text-gray-800">
-          Descripcion general de la donacion
+          Observaciones del donante
         </label>
         {editable ? (
           <textarea
@@ -213,7 +213,7 @@ export default function DetalleIntencion({
               onChange?.({ descripcionGeneralDonacion: e.target.value })
             }
             rows={3}
-            placeholder="Describe de forma general la donacion, su alcance y finalidad..."
+            placeholder="Escribe las observaciones proporcionadas por el donante sobre la donación..."
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
           />
         ) : (
@@ -246,14 +246,14 @@ export default function DetalleIntencion({
 
       <div>
         <label className="mb-1.5 block text-sm font-medium text-gray-800">
-          Condicion del producto (estado fisico, apariencia, etiquetado, empaque o envase)
+          Comentarios internos (Solo uso interno)
         </label>
         {editable ? (
           <textarea
             value={condicionProducto}
             onChange={(e) => onChange?.({ condicionProducto: e.target.value })}
             rows={4}
-            placeholder="Describe el estado fisico y apariencia del producto, etiquetado, empaque o envase..."
+            placeholder="Observaciones internas del equipo de BAP sobre la donación..."
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
           />
         ) : (
@@ -265,14 +265,14 @@ export default function DetalleIntencion({
 
       <div>
         <label className="mb-1.5 block text-sm font-medium text-gray-800">
-          Declaracion del producto
+          Notas adicionales (Opcional)
         </label>
         {editable ? (
           <textarea
             value={declaracionProducto}
             onChange={(e) => onChange?.({ declaracionProducto: e.target.value })}
             rows={4}
-            placeholder="Describe el estado, condiciones y consideraciones de los productos..."
+            placeholder="Agregar cualquier nota que consideres importante..."
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
           />
         ) : (

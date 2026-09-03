@@ -1,15 +1,8 @@
-import { useState, type FormEvent } from "react";
-import { Save, Trash2 } from "lucide-react";
+import { useState, useEffect, type FormEvent } from "react";
+import { Save, Trash2, Loader2 } from "lucide-react";
 import ProductosGrid from "../components/intencion/ProductosGrid";
 import DetalleIntencion from "../components/intencion/DetalleIntencion";
 import {
-  CANALES,
-  PROCEDENCIAS,
-  RESPONSABLES,
-  TIPOS_INTENCION,
-  TIPOS_PRODUCTO,
-  UNIDADES,
-  type Canal,
   type CompromisoIdoneidad,
   type CondicionAlmacenamiento,
   type DocumentoAdjunto,
@@ -23,20 +16,15 @@ import {
   type TipoProducto,
   type UnidadMedida,
   TipoLugar,
-  TIPOLUGAR,
-  DISTRITO,
   Distrito,
   Provincia,
-  PROVINCIA,
   Departamento,
-  DEPARTAMENTO,
-  TIPOACCESO,
   TipoAcceso,
   DiasAtencion,
-  ANTICIPACION,
   Anticipacion
 } from "../types/intencion";
 import { intencionStore } from "../services/intencionStore";
+import { useCatalogs, catalogStore } from "../services/catalogStore";
 
 interface Props {
   onCancelar: () => void;
@@ -160,15 +148,21 @@ const toProductoIntencion = (p: ProductoForm): ProductoIntencion => ({
 });
 
 export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
+  const catalogs = useCatalogs();
+
+  useEffect(() => {
+    catalogStore.loadCatalogs();
+  }, []);
+
   // Cabecera
   const [donante, setDonante] = useState("");
   const [contacto, setContacto] = useState("");
   const [fechaIntencion, setFechaIntencion] = useState(
     new Date().toISOString().slice(0, 10)
   );
-  const [canal, setCanal] = useState<Canal>("WhatsApp");
-  const [responsable, setResponsable] = useState(RESPONSABLES[0]);
-  const [tipoIntencion, setTipoIntencion] = useState<TipoIntencion>("Donacion");
+  const [canal, setCanal] = useState<string>("WhatsApp");
+  const [responsable, setResponsable] = useState("");
+  const [tipoIntencion, setTipoIntencion] = useState<string>("Donacion");
 
   // Productos
   const [productosForm, setProductosForm] = useState<ProductoForm[]>([
@@ -306,6 +300,22 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         </button>
       </div>
 
+      {catalogs.isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2 rounded-xl bg-white p-6 shadow-xl">
+            <Loader2 className="h-8 w-8 animate-spin text-[#5cb89a]" />
+            <p className="text-sm font-medium text-gray-600">Cargando catálogos...</p>
+          </div>
+        </div>
+      )}
+
+      {catalogs.error && (
+        <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600 border border-red-200">
+          <strong>Error al cargar catálogos:</strong> {catalogs.error}
+          <p className="mt-1 text-xs">Por favor, revisa la consola del navegador (F12) para más detalles.</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Cabecera */}
         <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -352,14 +362,15 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
               <label className="mb-1 block text-xs font-medium text-gray-600">
                 Canal
               </label>
+
               <select
                 value={canal}
-                onChange={(e) => setCanal(e.target.value as Canal)}
+                onChange={(e) => setCanal(e.target.value)}
                 className={inputBase}
               >
-                {CANALES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                {catalogs.canales.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
                   </option>
                 ))}
               </select>
@@ -373,7 +384,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 onChange={(e) => setResponsable(e.target.value)}
                 className={inputBase}
               >
-                {RESPONSABLES.map((r) => (
+                {catalogs.responsables?.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>
@@ -387,11 +398,11 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
               <select
                 value={tipoIntencion}
                 onChange={(e) =>
-                  setTipoIntencion(e.target.value as TipoIntencion)
+                  setTipoIntencion(e.target.value)
                 }
                 className={inputBase}
               >
-                {TIPOS_INTENCION.map((t) => (
+                {catalogs.tiposIntencion.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
@@ -478,7 +489,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {UNIDADES.map((u) => (
+                      {catalogs.unidades.map((u) => (
                         <option key={u} value={u}>
                           {u}
                         </option>
@@ -541,7 +552,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {TIPOS_PRODUCTO.map((t) => (
+                      {catalogs.tiposProducto.map((t) => (
                         <option key={t} value={t}>
                           {t}
                         </option>
@@ -563,7 +574,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {PROCEDENCIAS.map((pr) => (
+                      {catalogs.procedencias.map((pr) => (
                         <option key={pr} value={pr}>
                           {pr}
                         </option>
@@ -669,7 +680,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {TIPOLUGAR.map((u) => (
+                      {catalogs.tipoLugar.map((u) => (
                         <option key={u} value={u}>
                           {u}
                         </option>
@@ -743,7 +754,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {DISTRITO.map((t) => (
+                      {catalogs.distritos.map((t) => (
                         <option key={t} value={t}>
                           {t}
                         </option>
@@ -765,7 +776,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {PROVINCIA.map((t) => (
+                      {catalogs.provincias.map((t) => (
                         <option key={t} value={t}>
                           {t}
                         </option>
@@ -787,7 +798,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {DEPARTAMENTO.map((t) => (
+                      {catalogs.departamentos.map((t) => (
                         <option key={t} value={t}>
                           {t}
                         </option>
@@ -949,7 +960,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {TIPOACCESO.map((u) => (
+                      {catalogs.tipoAcceso.map((u) => (
                         <option key={u} value={u}>
                           {u}
                         </option>
@@ -1085,7 +1096,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       }
                       className={inputBase}
                     >
-                      {ANTICIPACION.map((t) => (
+                      {catalogs.anticipacion.map((t) => (
                         <option key={t} value={t}>
                           {t}
                         </option>

@@ -1,6 +1,6 @@
 
 const apiUrl = import.meta.env.VITE_API_URL;
-const API_BASE_URL = apiUrl;
+const API_BASE_URL = "/api";
 
 export type LoginUser = {
   publicId: string;
@@ -10,6 +10,7 @@ export type LoginUser = {
 };
 
 export type LoginData = {
+  token: string;
   expiresAt: string;
   user: LoginUser;
 };
@@ -26,6 +27,14 @@ export type LoginResponse = {
 export type AuthenticatedLoginResponse = LoginResponse & {
   data: LoginData;
 };
+
+export function getToken(): string | null {
+  return localStorage.getItem("auth_token");
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem("auth_token", token);
+}
 
 export async function loginUser(
   login: string,
@@ -52,6 +61,10 @@ export async function loginUser(
 
   if (!response.ok || !result.success || !result.data) {
     throw new Error(result.message || "No se pudo iniciar sesion.");
+  }
+
+  if (result.data.token) {
+    setToken(result.data.token);
   }
 
   return {
