@@ -9,14 +9,14 @@ interface CatalogItem {
 interface CatalogState {
   canales: CatalogItem[];
   tiposIntencion: string[];
-  tiposProducto: string[];
+  tiposProducto: CatalogItem[];
   procedencias: string[];
   unidades: string[];
   tipoLugar: string[];
   distritos: string[];
   provincias: string[];
   departamentos: string[];
-  tipoAcceso: string[];
+  tipoAcceso: CatalogItem[];
   anticipacion: string[];
   isLoading: boolean;
   error: string | null;
@@ -73,14 +73,14 @@ export const catalogStore = {
         ...state,
         canales: data.origins || [],
         tiposIntencion: data.tiposIntencion || [],
-        tiposProducto: data.tiposProducto || [],
+        tiposProducto: data.productTypes || [],
         procedencias: data.procedencias || [],
         unidades: data.unidades || [],
         tipoLugar: data.tipoLugar || [],
         distritos: data.distritos || [],
         provincias: data.provincias || [],
         departamentos: data.departamentos || [],
-        tipoAcceso: data.tipoAcceso || [],
+        tipoAcceso: data.accessTypes || [],
         anticipacion: data.anticipacion || [],
         isLoading: false,
       };

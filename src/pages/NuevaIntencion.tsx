@@ -553,8 +553,8 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       className={inputBase}
                     >
                       {catalogs.tiposProducto.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
+                        <option key={t.id} value={t.id}>
+                          {t.name}
                         </option>
                       ))}
                     </select>
@@ -961,8 +961,8 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       className={inputBase}
                     >
                       {catalogs.tipoAcceso.map((u) => (
-                        <option key={u} value={u}>
-                          {u}
+                        <option key={u.id} value={u.id}>
+                          {u.name}
                         </option>
                       ))}
                     </select>
