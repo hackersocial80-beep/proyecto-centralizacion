@@ -1,14 +1,14 @@
 import { Trash2 } from "lucide-react";
 import type { ProductoIntencion } from "../../types/intencion";
-import { TIPOS_PRODUCTO, UNIDADES } from "../../types/intencion";
 
 interface Props {
   productos: ProductoIntencion[];
+  catalogs?: any;
   editable?: boolean;
   onDelete?: (id: string) => void;
 }
 
-export default function ProductosGrid({ productos, editable, onDelete }: Props) {
+export default function ProductosGrid({ productos, catalogs, editable, onDelete }: Props) {
   if (productos.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
@@ -80,7 +80,11 @@ export default function ProductosGrid({ productos, editable, onDelete }: Props) 
                 <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
                   {p.cantidad}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-700">{p.unidad}</td>
+                <td className="px-4 py-3 text-sm text-gray-700">
+                  {catalogs?.unidades
+                    ?.find((u: any) => u.id === p.unidad)
+                    ?.name || p.unidad}
+                </td>
                 <td className="px-4 py-3 text-right text-sm text-gray-700">
                   {p.pesoEstimadoKg.toFixed(2)}
                 </td>
@@ -88,9 +92,15 @@ export default function ProductosGrid({ productos, editable, onDelete }: Props) 
                   {formatDate(p.vidaUtil)}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-700">
-                  {TIPOS_PRODUCTO.includes(p.tipoProducto) ? p.tipoProducto : p.tipoProducto}
+                  {catalogs?.tiposProducto
+                    ?.find((t: any) => t.id === p.tipoProducto)
+                    ?.name || p.tipoProducto}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-700">{p.procedencia}</td>
+                <td className="px-4 py-3 text-sm text-gray-700">
+                  {catalogs?.procedencias
+                    ?.find((pr: any) => pr.id === p.procedencia)
+                    ?.name || p.procedencia}
+                </td>
                 {editable && (
                   <td className="px-4 py-3 text-center">
                     <button
@@ -109,9 +119,6 @@ export default function ProductosGrid({ productos, editable, onDelete }: Props) 
           </tbody>
         </table>
       </div>
-
-      {/* Catalogo auxiliar exportado por si el padre quiere agregar un producto */}
-      <span className="hidden" data-unidades={UNIDADES.join(",")} />
     </div>
   );
 }

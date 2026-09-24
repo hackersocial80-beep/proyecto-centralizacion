@@ -19,7 +19,13 @@ export type EstadoIntencion =
   | "Pendiente"
   | "En evaluacion"
   | "Aprobada"
-  | "Rechazada";
+  | "Rechazada"
+  | "Capturada"
+  | "AprobadaCalidad"
+  | "AprobadaLogistica"
+  | "Asignada"
+  | "Coordinada"
+  | "Cerrada";
 
 export type TipoProducto =
   | "No perecible"

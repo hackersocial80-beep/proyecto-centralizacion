@@ -1,7 +1,6 @@
-const apiUrl = import.meta.env.VITE_API_URL;
-const API_BASE_URL = apiUrl;
-
 import { getToken } from "./authService";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export interface CatalogResponse {
   success: boolean;
@@ -12,23 +11,80 @@ export interface CatalogResponse {
   timestamp: string;
 }
 
-export async function fetchCatalogs(): Promise<any> {
+async function safeFetch(url: string, useToken = true) {
   const token = getToken();
-
-  const response = await fetch(`${API_BASE_URL}/Commons/catalogs`, {
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
-      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      ...(useToken && token ? { Authorization: `Bearer ${token}` } : {}),
     },
+    credentials: "include",
   });
 
-  const result = (await response.json()) as CatalogResponse;
+  if (!response.ok && response.status !== 401) {
+    const errorText = await response.text();
+    throw new Error(`Error ${response.status}: ${errorText || "Error en la petición"}`);
+  }
+  return response;
+}
 
-  if (!response.ok || !result.success) {
-    throw new Error(result.message || "No se pudieron obtener los catálogos.");
+export async function fetchCatalogs(): Promise<any> {
+  let response = await safeFetch(`${API_BASE_URL}/Commons/catalogs`);
+
+  if (response.status === 401) {
+    console.warn("Intento con token falló (401), probando acceso público...");
+    response = await safeFetch(`${API_BASE_URL}/Commons/catalogs`, false);
   }
 
-  return result.data;
+  if (!response.ok) {
+    throw new Error("No se pudieron obtener los catálogos.");
+  }
+
+  const text = await response.text();
+  const result = JSON.parse(text) as CatalogResponse;
+  return result.success ? result.data : null;
+}
+
+export async function fetchDepartments(): Promise<any[]> {
+  try {
+    let response = await safeFetch(`${API_BASE_URL}/Commons/ubigeo/departments`);
+    if (response.status === 401) response = await safeFetch(`${API_BASE_URL}/Commons/ubigeo/departments`, false);
+
+    const text = await response.text();
+    const result = JSON.parse(text) as CatalogResponse;
+    return result.success ? result.data : [];
+  } catch (e) {
+    console.error("Error fetching departments:", e);
+    return [];
+  }
+}
+
+export async function fetchProvinces(deptCode: string): Promise<any[]> {
+  try {
+    let response = await safeFetch(`${API_BASE_URL}/Commons/ubigeo/provinces?departmentCode=${deptCode}`);
+    if (response.status === 401) response = await safeFetch(`${API_BASE_URL}/Commons/ubigeo/provinces?departmentCode=${deptCode}`, false);
+
+    const text = await response.text();
+    const result = JSON.parse(text) as CatalogResponse;
+    return result.success ? result.data : [];
+  } catch (e) {
+    console.error("Error fetching provinces:", e);
+    return [];
+  }
+}
+
+export async function fetchDistricts(provCode: string): Promise<any[]> {
+  try {
+    let response = await safeFetch(`${API_BASE_URL}/Commons/ubigeo/districts?provinceCode=${provCode}`);
+    if (response.status === 401) response = await safeFetch(`${API_BASE_URL}/Commons/ubigeo/districts?provinceCode=${provCode}`, false);
+
+    const text = await response.text();
+    const result = JSON.parse(text) as CatalogResponse;
+    return result.success ? result.data : [];
+  } catch (e) {
+    console.error("Error fetching districts:", e);
+    return [];
+  }
 }

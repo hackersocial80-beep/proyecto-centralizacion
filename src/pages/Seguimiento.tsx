@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
-import { Download, ShieldCheck, Truck } from "lucide-react";
+import { Download, ShieldCheck, Truck, PackageCheck, CalendarCheck, CheckCircle2 } from "lucide-react";
 import GridOrganizaciones from "../components/seguimiento/GridOrganizaciones";
 import DetalleSeguimiento from "../components/seguimiento/DetalleSeguimiento";
 import CalidadPage from "../components/seguimiento/CalidadPage";
 import LogisticaPage from "../components/seguimiento/LogisticaPage";
+import DistribucionPage from "../pages/DistribucionPage";
+import CoordinacionPage from "../pages/CoordinacionPage";
+import CierrePage from "../pages/CierrePage";
 import FiltrosSeguimiento, {
   FILTROS_SEGUIMIENTO_VACIOS,
   type FiltrosSeguimiento as Filtros,
@@ -11,7 +14,7 @@ import FiltrosSeguimiento, {
 import { useDonaciones } from "../services/donacionStore";
 import { organizacionesDesdeDonaciones } from "../types/seguimiento";
 
-type SubScreen = "seguimiento" | "calidad" | "logistica";
+type SubScreen = "seguimiento" | "calidad" | "logistica" | "distribucion" | "coordinacion" | "cierre";
 
 interface Props {
   initial?: SubScreen;
@@ -78,6 +81,18 @@ export default function SeguimientoPage({ initial = "seguimiento" }: Props) {
     return <LogisticaPage onVolver={() => setSub("seguimiento")} />;
   }
 
+  if (sub === "distribucion") {
+    return <DistribucionPage onVolver={() => setSub("seguimiento")} />;
+  }
+
+  if (sub === "coordinacion") {
+    return <CoordinacionPage onVolver={() => setSub("seguimiento")} />;
+  }
+
+  if (sub === "cierre") {
+    return <CierrePage onVolver={() => setSub("seguimiento")} />;
+  }
+
   const detalle = detalleId
     ? organizaciones.find((o) => o.id === detalleId) ?? null
     : null;
@@ -91,7 +106,6 @@ export default function SeguimientoPage({ initial = "seguimiento" }: Props) {
         <h1 className="text-2xl font-bold text-gray-900">Seguimiento</h1>
       </div>
 
-      {/* Acciones superiores */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -128,11 +142,34 @@ export default function SeguimientoPage({ initial = "seguimiento" }: Props) {
               <Truck className="h-4 w-4" />
               Logistica
             </button>
+            <button
+              type="button"
+              onClick={() => setSub("distribucion")}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#5cb89a]/40 bg-white px-4 py-2 text-sm font-medium text-[#5cb89a] hover:bg-[#5cb89a]/10"
+            >
+              <PackageCheck className="h-4 w-4" />
+              Distribucion
+            </button>
+            <button
+              type="button"
+              onClick={() => setSub("coordinacion")}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#5cb89a]/40 bg-white px-4 py-2 text-sm font-medium text-[#5cb89a] hover:bg-[#5cb89a]/10"
+            >
+              <CalendarCheck className="h-4 w-4" />
+              Coordinacion
+            </button>
+            <button
+              type="button"
+              onClick={() => setSub("cierre")}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#5cb89a]/40 bg-white px-4 py-2 text-sm font-medium text-[#5cb89a] hover:bg-[#5cb89a]/10"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Cierre
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <FiltrosSeguimiento
           filtros={filtros}

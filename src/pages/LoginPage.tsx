@@ -3,18 +3,6 @@ import logo from "../assets/logo.png";
 import boyPhone from "../assets/boy-phone.jpg";
 import { loginUser, type LoginUser } from "../services/authService";
 
-// Credenciales de demo (temporales, hasta recibir las credenciales reales del BAP)
-const DEMO_CREDENTIALS = {
-  username: "demo",
-  password: "demo123",
-  user: {
-    publicId: "demo-public-id",
-    username: "demo",
-    fullName: "Usuario Demo",
-    email: "demo@bap.local",
-  },
-} as const;
-
 interface Props {
   onLoginSuccess?: (user: LoginUser) => void;
 }
@@ -32,22 +20,6 @@ export default function LoginPage({ onLoginSuccess }: Props) {
     setIsLoading(true);
     setErrorMessage("");
     setLoggedUser(null);
-
-    // Atajo demo: evita la llamada a la API real
-    if (
-      login.trim().toLowerCase() === DEMO_CREDENTIALS.username &&
-      password === DEMO_CREDENTIALS.password
-    ) {
-      const demoUser = DEMO_CREDENTIALS.user;
-      const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();
-      localStorage.setItem("authUser", JSON.stringify(demoUser));
-      localStorage.setItem("authExpiresAt", expiresAt);
-      localStorage.setItem("authIsDemo", "1");
-      setLoggedUser(demoUser);
-      onLoginSuccess?.(demoUser);
-      setIsLoading(false);
-      return;
-    }
 
     try {
       const result = await loginUser(login, password);
@@ -67,12 +39,6 @@ export default function LoginPage({ onLoginSuccess }: Props) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fillDemo = () => {
-    setLogin(DEMO_CREDENTIALS.username);
-    setPassword(DEMO_CREDENTIALS.password);
-    setErrorMessage("");
   };
 
   return (
@@ -222,7 +188,6 @@ export default function LoginPage({ onLoginSuccess }: Props) {
                           strokeLinejoin="round"
                           d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                         />
-
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -285,14 +250,12 @@ export default function LoginPage({ onLoginSuccess }: Props) {
                         stroke="currentColor"
                         strokeWidth="4"
                       />
-
                       <path
                         className="opacity-75"
                         fill="currentColor"
                         d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                       />
                     </svg>
-
                     Ingresando...
                   </>
                 ) : (
@@ -315,28 +278,6 @@ export default function LoginPage({ onLoginSuccess }: Props) {
                 Comunicate con el administrador
               </button>
             </p>
-
-            <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-              <p className="mb-1 font-semibold uppercase tracking-wider text-amber-700">
-                Modo demo (temporal)
-              </p>
-              <p className="mb-2">
-                Usa estas credenciales mientras el administrador te entrega las
-                tuyas. No se conectan a la API real.
-              </p>
-              <button
-                type="button"
-                onClick={fillDemo}
-                className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-mono text-amber-900 transition-colors hover:bg-amber-100"
-              >
-                <span>demo</span>
-                <span className="text-amber-500">/</span>
-                <span>demo123</span>
-                <span className="ml-1 text-[10px] uppercase tracking-wider text-amber-600">
-                  usar
-                </span>
-              </button>
-            </div>
           </div>
         </section>
 

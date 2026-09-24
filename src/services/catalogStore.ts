@@ -8,16 +8,21 @@ interface CatalogItem {
 }
 interface CatalogState {
   canales: CatalogItem[];
-  tiposIntencion: string[];
+  tiposIntencion: CatalogItem[];
   tiposProducto: CatalogItem[];
-  procedencias: string[];
+  procedencias: CatalogItem[];
   unidades: string[];
-  tipoLugar: string[];
+  tipoLugar: CatalogItem[];
   distritos: string[];
   provincias: string[];
   departamentos: string[];
   tipoAcceso: CatalogItem[];
   anticipacion: string[];
+  motivosDonacion:CatalogItem[];
+  condicionAlmacenamiento:CatalogItem[];
+  compromisosIdoneidad:CatalogItem[];
+  condicionesProducto:CatalogItem[];
+  responsables: string[];
   isLoading: boolean;
   error: string | null;
 }
@@ -34,6 +39,11 @@ const initialState: CatalogState = {
   departamentos: [],
   tipoAcceso: [],
   anticipacion: [],
+  motivosDonacion:[],
+  condicionAlmacenamiento:[],
+  compromisosIdoneidad:[],
+  condicionesProducto:[],
+  responsables: [],
   isLoading: false,
   error: null,
 };
@@ -60,8 +70,11 @@ export const catalogStore = {
 
     try {
       console.log("Iniciando carga de catálogos...");
-      // 1. Authenticate with the specific credentials provided by the user
-      await loginUser("wolf@bap.com.pe", "banc36");
+      // 1. Authenticate with the credentials from environment variables
+      await loginUser(
+        import.meta.env.VITE_AUTH_LOGIN,
+        import.meta.env.VITE_AUTH_PASSWORD
+      );
       console.log("Autenticación exitosa");
 
       // 2. Fetch the catalogs
@@ -71,17 +84,20 @@ export const catalogStore = {
       // Mapping the API response to our state.
       state = {
         ...state,
-        canales: data.origins || [],
-        tiposIntencion: data.tiposIntencion || [],
+        canales: data.channels || [],
+        tiposIntencion: data.intentionTypes || [],
         tiposProducto: data.productTypes || [],
-        procedencias: data.procedencias || [],
+        procedencias: data.originType || [],
         unidades: data.unidades || [],
-        tipoLugar: data.tipoLugar || [],
+        tipoLugar: data.placeTypes || [],
         distritos: data.distritos || [],
         provincias: data.provincias || [],
         departamentos: data.departamentos || [],
         tipoAcceso: data.accessTypes || [],
         anticipacion: data.anticipacion || [],
+        motivosDonacion: data.donationsReason || [],
+        condicionAlmacenamiento:data.storageConditions|| [],
+        compromisosIdoneidad:data.intentionTypes|| [],
         isLoading: false,
       };
     } catch (e: any) {

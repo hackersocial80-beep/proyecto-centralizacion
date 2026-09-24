@@ -1,0 +1,360 @@
+import { useEffect, useState } from "react";
+import {
+  Info,
+  MapPin,
+  Package,
+  CheckCircle,
+  ExternalLink,
+  Search,
+  User,
+  LayoutDashboard,
+  Filter,
+  ArrowLeft,
+  Eye,
+  Building2,
+  ClipboardList,
+  X
+} from "lucide-react";
+import { getIntenciones, getIntencionById, getRecommendations, updateIntencionStatus } from "../services/intencionService";
+
+interface Props {
+  onVolver: () => void;
+}
+
+export default function DistribucionPage({ onVolver }: Props) {
+  const [intentions, setIntentions] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [intention, setIntention] = useState<any>(null);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getIntenciones();
+        const filtered = data.filter((i: any) => i.estado === 2 || i.estado === "AprobadaLogistica");
+        setIntentions(filtered);
+      } catch (e) {
+        console.error("Error loading intentions", e);
+      }
+    }
+    load();
+  }, []);
+
+  const selectIntention = async (id: string) => {
+    setSelectedId(id);
+    setIsLoading(true);
+    try {
+      const [intData, recs] = await Promise.all([
+        getIntencionById(id),
+        getRecommendations(id)
+      ]);
+      setIntention(intData);
+      setRecommendations(recs);
+    } catch (e) {
+      console.error("Error fetching distribution data", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAssign = async (orgId: number) => {
+    try {
+      await updateIntencionStatus(selectedId, 3);
+      alert(`Donación asignada exitosamente a la organización ID: ${orgId}`);
+      const data = await getIntenciones();
+      setIntentions(data.filter((i: any) => i.estado === 2 || i.estado === "AprobadaLogistica"));
+      setIntention(null);
+      setSelectedId("");
+    } catch (e) {
+      alert("Error al asignar organización");
+    }
+  };
+
+  return (
+    <div className="space-y-6 px-6 py-6 lg:px-10">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onVolver}
+            className="rounded-lg border border-gray-300 bg-white p-2 text-gray-700 hover:bg-gray-50 transition-all"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-[#5cb89a]">
+              Seguimiento · Distribución
+            </p>
+            <h1 className="text-2xl font-bold text-gray-900">Asignación de Donaciones</h1>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1 space-y-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Listas para Asignar</h3>
+              <span className="bg-[#5cb89a]/10 text-[#5cb89a] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                {intentions.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {intentions.length === 0 ? (
+                <p className="text-xs text-gray-500 text-center py-4">No hay donaciones pendientes</p>
+              ) : (
+                intentions.map((i) => (
+                  <button
+                    key={i.id}
+                    onClick={() => selectIntention(i.id.toString())}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${
+                      selectedId === i.id.toString()
+                        ? "border-[#5cb89a] bg-[#5cb89a]/10 ring-1 ring-[#5cb89a]"
+                        : "border-gray-100 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-gray-900">{i.codigo}</p>
+                    <p className="text-xs text-gray-600 truncate">{i.donante}</p>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-3 space-y-6">
+          {!intention ? (
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-20 text-center text-gray-500">
+              {isLoading ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#5cb89a] border-t-transparent" />
+                  <p className="text-sm">Cargando datos de distribución...</p>
+                </div>
+              ) : (
+                <p className="text-sm">Selecciona una donación para iniciar el proceso de asignación.</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-gray-500 uppercase">Código Donación</p>
+                  <p className="text-lg font-bold text-gray-900">{intention.codigo}</p>
+                  <p className="text-xs text-gray-600">{intention.donante}</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-gray-500 uppercase">Fecha Intención</p>
+                  <p className="text-lg font-bold text-gray-900">{intention.fecha}</p>
+                  <p className="text-xs text-gray-600">Estado: Aprobada Logística</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-gray-500 uppercase">Total Estimados</p>
+                  <p className="text-lg font-bold text-[#5cb89a]">
+                    {intention.productos?.reduce((acc: number, p: any) => acc + (p.cantidad || 0), 0)} Unid.
+                  </p>
+                  <button
+                    onClick={() => setSelectedOrg({ type: 'PRODUCT_DETAIL', data: intention.productos })}
+                    className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1"
+                  >
+                    <Eye className="h-3 w-3" /> Ver detalle
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <MapPin className="h-4 w-4 text-[#5cb89a]" />
+                    Ubicación de Recojo
+                  </h3>
+                  <p className="text-sm text-gray-800 mb-3">{intention.logistica?.direccion || "No especificada"}</p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${intention.logistica?.direccion}`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                  >
+                    <ExternalLink className="h-3 w-3" /> Ver en Mapa
+                  </a>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <ClipboardList className="h-4 w-4 text-[#5cb89a]" />
+                    Condiciones y Requisitos
+                  </h3>
+                  <div className="grid grid-cols-2 gap-y-2 text-xs">
+                    <p className="text-gray-500">Condición:</p>
+                    <p className="text-gray-900 font-medium">{intention.condicionProducto || "-"}</p>
+                    <p className="text-gray-500">Almacenamiento:</p>
+                    <p className="text-gray-900 font-medium">{intention.condicionAlmacenamiento || "-"}</p>
+                    <p className="text-gray-500">Vida Útil Promedio:</p>
+                    <p className="text-gray-900 font-medium">{intention.vidaUtilPromedio || "-"}</p>
+                    <p className="text-gray-500">Urgencia:</p>
+                    <p className="text-gray-900 font-medium text-red-600">Alta</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
+                    <LayoutDashboard className="h-5 w-5 text-[#5cb89a]" />
+                    Organizaciones Recomendadas
+                  </h3>
+                  <button className="inline-flex items-center gap-2 text-xs font-medium text-gray-600 hover:text-[#5cb89a] transition-colors">
+                    <Filter className="h-3 w-3" /> Asignación Manual
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {recommendations.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center py-10">No se encontraron organizaciones compatibles.</p>
+                  ) : (
+                    recommendations.map((rec: any) => (
+                      <div
+                        key={rec?.Organizacion?.Id || Math.random()}
+                        className="group rounded-xl border border-gray-100 bg-gray-50 p-4 hover:border-[#5cb89a] hover:bg-white transition-all cursor-pointer shadow-sm"
+                        onClick={() => setSelectedOrg({ type: 'ORG_PROFILE', data: rec?.Organizacion })}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-[#5cb89a]/20 flex items-center justify-center text-[#5cb89a]">
+                              <Building2 className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">{rec?.Organizacion?.Nombre || "S/N"}</p>
+                              <p className="text-xs text-gray-500">{rec?.Organizacion?.Categoria || "-"} · {rec?.Organizacion?.Zona || "-"}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-[#5cb89a]">{rec?.Compatibility ?? 0}%</p>
+                            <p className="text-[10px] font-medium text-gray-400 uppercase">Compatibilidad</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between">
+                          <p className="text-xs text-gray-600 italic">
+                            <span className="font-semibold text-gray-800">Sugerencia: </span>{rec?.Reason || "Sin descripción disponible"}
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAssign(rec?.Organizacion?.Id);
+                            }}
+                            className="rounded-md bg-[#5cb89a] px-3 py-1 text-xs font-semibold text-white hover:bg-[#4a9a82] transition-colors"
+                          >
+                            Asignar
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {selectedOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="max-w-2xl w-full rounded-2xl bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">
+                {selectedOrg.type === 'PRODUCT_DETAIL' ? "Detalle de Productos" : "Perfil de Organización"}
+              </h3>
+              <button onClick={() => setSelectedOrg(null)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {selectedOrg.type === 'PRODUCT_DETAIL' ? (
+                <div className="space-y-4">
+                  <table className="min-w-full border">
+                    <thead className="bg-gray-50 text-xs font-semibold text-gray-600">
+                      <tr>
+                        <th className="p-2 text-left border">Producto</th>
+                        <th className="p-2 text-left border">Cant.</th>
+                        <th className="p-2 text-left border">Vida Útil</th>
+                        <th className="p-2 text-left border">Total (kg)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {selectedOrg.data && selectedOrg.data.map((p: any, i: number) => (
+                        <tr key={i} className="border-b">
+                          <td className="p-2 border">{p.nombre || p.producto}</td>
+                          <td className="p-2 border">{p.cantidad} {p.unidad}</td>
+                          <td className="p-2 border">{p.vidaUtil}</td>
+                          <td className="p-2 border">{p.peso || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-gray-500 uppercase">Información General</p>
+                      <p className="text-sm font-bold text-gray-900">{selectedOrg.data?.Nombre}</p>
+                      <p className="text-sm text-gray-600">{selectedOrg.data?.Direccion}</p>
+                      <p className="text-sm text-gray-600">Ubigeo: {selectedOrg.data?.Ubigeo}</p>
+                    </div>
+                    <div className="space-y-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      <p className="text-xs font-medium text-gray-500 uppercase">Indicadores</p>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Beneficiarios:</span>
+                        <span className="font-bold">{selectedOrg.data?.Beneficiarios}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Kg / Persona:</span>
+                        <span className="font-bold">{selectedOrg.data?.KgPorPersona}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Capacidad Sem.:</span>
+                        <span className="font-bold">{selectedOrg.data?.CapacidadSemanalKg}kg</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-xs font-medium text-gray-500 uppercase">Productos que reciben</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedOrg.data?.ProductosRecibidos?.map((prod: string) => (
+                        <span key={prod} className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-md border border-emerald-200">
+                          {prod}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-xs font-medium text-blue-700 mb-1">Historial de Cumplimiento (6 meses)</p>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{ width: `${(selectedOrg.data?.HistorialCumplimiento || 0) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-right text-xs font-bold text-blue-700 mt-1">
+                      {((selectedOrg.data?.HistorialCumplimiento || 0) * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setSelectedOrg(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

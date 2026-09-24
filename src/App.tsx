@@ -7,6 +7,7 @@ import DonacionPage from "./pages/Donacion";
 import SeguimientoPage from "./pages/Seguimiento";
 import AppShell, { type ModuloKey } from "./components/AppShell";
 import type { LoginUser } from "./services/authService";
+import { ToastProvider } from "./components/ui/Toast";
 
 type Screen = ModuloKey | "login" | "nuevaIntencion";
 
@@ -25,12 +26,14 @@ export default function App() {
 
   if (screen === "login") {
     return (
-      <LoginPage onLoginSuccess={(_user: LoginUser) => setScreen("menu")} />
+      <ToastProvider>
+        <LoginPage onLoginSuccess={(_user: LoginUser) => setScreen("menu")} />
+      </ToastProvider>
     );
   }
 
   // Pantallas con sidebar persistente: solo se renderiza el contenido
-  // y AppShell provee el menu lateral unico.
+  // AppShell provee el menu lateral unico.
   const moduloActivo: ModuloKey =
     screen === "nuevaIntencion" ? "intencion" : screen;
 
@@ -63,15 +66,17 @@ export default function App() {
   }
 
   return (
-    <AppShell
-      moduloActivo={moduloActivo}
-      onInicio={() => setScreen("menu")}
-      onIntencion={() => setScreen("intencion")}
-      onDonacion={() => setScreen("donacion")}
-      onSeguimiento={() => setScreen("seguimiento")}
-      onCerrarSesion={goToLogin}
-    >
-      {contenido}
-    </AppShell>
+    <ToastProvider>
+      <AppShell
+        moduloActivo={moduloActivo}
+        onInicio={() => setScreen("menu")}
+        onIntencion={() => setScreen("intencion")}
+        onDonacion={() => setScreen("donacion")}
+        onSeguimiento={() => setScreen("seguimiento")}
+        onCerrarSesion={goToLogin}
+      >
+        {contenido}
+      </AppShell>
+    </ToastProvider>
   );
 }
