@@ -39,8 +39,8 @@ const EVALUATION_ITEMS = [
 const STEPS = [
   { id: 'general', label: 'Información General', icon: InfoIcon },
   { id: 'productos', label: 'Productos y Condiciones', icon: Package },
-  { id: 'evaluacion', label: 'Evaluación Técnica', icon: CheckCircle2 },
   { id: 'evidencias', label: 'Evidencias y Documentos', icon: FileText },
+  { id: 'evaluacion', label: 'Evaluación Técnica', icon: CheckCircle2 },
   { id: 'veredicto', label: 'Veredicto Final', icon: CheckCircle },
 ];
 

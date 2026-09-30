@@ -31,6 +31,7 @@ import { Input, Select } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { FormField } from "../components/ui/FormField";
+import Tooltip  from "../components/ui/Tooltip";
 
 interface Props {
   onCancelar: () => void;
@@ -314,13 +315,10 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         createdAt: new Date().toISOString(),
       };
 
-      // Guardar en el backend
-      await saveIntencion(nueva);
-
-      // También mantener en el store local para visualización inmediata
+      // Guardar en el store local para visualización inmediata
       intencionStore.add(nueva);
 
-      showToast("¡Intención guardada exitosamente en el servidor!", "success");
+      showToast("¡Intención guardada exitosamente en el sistema local!", "success");
       onGuardada();
     } catch (error: any) {
       showToast(error.message || "Ocurrió un error al guardar la intención", "error");
@@ -636,26 +634,33 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 value={fechaEstimadaEntrega}
                 onChange={(e) => setFechaEstimadaEntrega(e.target.value)}
               />
+
               <Select
-                label="Condición del producto"
-                value={condicionProducto}
-                onChange={(e) => setCondicionProducto(e.target.value)}
-              >
-                <option value="">Seleccionar condición</option>
-                {catalogs.condicionesProducto?.map((item: any) => (
-                  <option key={item.id || item} value={item.id || item}>
-                    {item.name || item}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                label="¿Incluye productos sensibles?"
+                label="¿Incluye insumos sensibles?"
                 value={incluyeProductosSensibles ? "true" : "false"}
-                onChange={(e) => setIncluyeProductosSensibles(e.target.value === "true")}
+                onChange={(e) =>
+                  setIncluyeProductosSensibles(e.target.value === "true")
+                }
               >
                 <option value="false">No</option>
                 <option value="true">Sí</option>
               </Select>
+
+              <Tooltip
+                content={
+                  <>
+                    <p className="font-semibold">Insumos sensibles:</p>
+                    <ul className="list-disc pl-4">
+                      <li>Proteínas y derivados</li>
+                      <li>Refrigerados o congelados</li>
+                      <li>Suplementos alimenticios</li>
+                      <li>Comida preparada</li>
+                    </ul>
+                  </>
+                }
+              >
+                <span className="cursor-help">ⓘ</span>
+              </Tooltip>
             </div>
 
             <div className="mt-6 space-y-6">
@@ -980,7 +985,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                                 className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${seleccionado
                                   ? "border-[#5cb89a] bg-[#5cb89a]/10 text-[#318b70]"
                                   : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                }`}
+                                  }`}
                               >
                                 <input
                                   type="checkbox"
@@ -990,7 +995,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                                       ? [...p.diasAtencion, dia as DiasAtencion]
                                       : p.diasAtencion.filter((d) => d !== dia);
                                     setProductoField(p.id, "diasAtencion", nuevosDias);
-                                }}
+                                  }}
                                   className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
                                 />
                                 <span>{dia}</span>
@@ -1058,7 +1063,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                                 className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition ${seleccionado
                                   ? "border-[#5cb89a] bg-[#5cb89a]/10 text-[#318b70]"
                                   : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                }`}
+                                  }`}
                               >
                                 <input
                                   type="checkbox"
@@ -1068,7 +1073,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                                       ? [...p.requisitosIngreso, requisito]
                                       : p.requisitosIngreso.filter((r) => r !== requisito);
                                     setProductoField(p.id, "requisitosIngreso", nuevosRequisitos);
-                                }}
+                                  }}
                                   className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
                                 />
                                 <span>{requisito}</span>

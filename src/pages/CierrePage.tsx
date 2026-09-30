@@ -26,7 +26,7 @@ import {
   Calendar,
   Zap
 } from "lucide-react";
-import { getIntenciones, getIntencionById } from "../services/intencionService";
+import { getIntenciones, getIntencionById, updateIntencionStatus } from "../services/intencionService";
 
 interface Props {
   onVolver: () => void;
