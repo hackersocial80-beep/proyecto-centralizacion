@@ -604,18 +604,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                   </option>
                 ))}
               </Select>
-              <Select
-                label="Compromiso de idoneidad"
-                value={compromisoIdoneidad}
-                onChange={(e) => setCompromisoIdoneidad(e.target.value as CompromisoIdoneidad)}
-              >
-                <option value="">Seleccionar</option>
-                {catalogs.compromisosIdoneidad.map((item: any) => (
-                  <option key={item.id || item} value={item.id || item}>
-                    {item.name || item}
-                  </option>
-                ))}
-              </Select>
+              
               <Select
                 label="Condición de almacenamiento"
                 value={condicionAlmacenamiento}
@@ -634,33 +623,104 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 value={fechaEstimadaEntrega}
                 onChange={(e) => setFechaEstimadaEntrega(e.target.value)}
               />
+              <div>
+  <div className="flex items-center gap-1 mb-1">
+    <span>¿Incluye insumos sensibles?</span>
 
-              <Select
-                label="¿Incluye insumos sensibles?"
-                value={incluyeProductosSensibles ? "true" : "false"}
-                onChange={(e) =>
-                  setIncluyeProductosSensibles(e.target.value === "true")
-                }
-              >
-                <option value="false">No</option>
-                <option value="true">Sí</option>
-              </Select>
+    <Tooltip
+      content={
+        <>
+          <p className="font-semibold">Productos sensibles:</p>
+          <ul className="list-disc pl-4">
+            <li>Proteínas y derivados</li>
+            <li>Refrigerados o congelados</li>
+            <li>Suplementos alimenticios</li>
+            <li>Comida preparada</li>
+          </ul>
+        </>
+      }
+    >
+      <span className="cursor-help text-gray-500">ⓘ</span>
+    </Tooltip>
+  </div>
 
-              <Tooltip
-                content={
-                  <>
-                    <p className="font-semibold">Insumos sensibles:</p>
-                    <ul className="list-disc pl-4">
-                      <li>Proteínas y derivados</li>
-                      <li>Refrigerados o congelados</li>
-                      <li>Suplementos alimenticios</li>
-                      <li>Comida preparada</li>
-                    </ul>
-                  </>
-                }
-              >
-                <span className="cursor-help">ⓘ</span>
-              </Tooltip>
+  <Select
+    value={incluyeProductosSensibles ? "true" : "false"}
+    onChange={(e) =>
+      setIncluyeProductosSensibles(e.target.value === "true")
+    }
+  >
+    <option value="false">No</option>
+    <option value="true">Sí</option>
+  </Select>
+</div>
+              <div className="col-span-2">
+  <label className="block text-sm font-medium text-gray-900 mb-3">
+    Compromiso de idoneidad
+  </label>
+
+  <div className="grid grid-cols-3 gap-6 w-full">
+    {/* Check 1 */}
+    <label className="flex items-start gap-3 cursor-pointer">
+      <input
+        type="checkbox"
+        className="mt-1 h-4 w-4 shrink-0"
+        checked={compromisoIdoneidad.includes("envase_integro")}
+        onChange={(e) => {
+          setCompromisoIdoneidad((prev) =>
+            e.target.checked
+              ? [...prev, "envase_integro"]
+              : prev.filter((item) => item !== "envase_integro")
+          );
+        }}
+      />
+
+      <span className="text-sm text-gray-700 leading-6">
+        Envase íntegro y sellado (cuando aplique)
+      </span>
+    </label>
+
+    {/* Check 2 */}
+    <label className="flex items-start gap-3 cursor-pointer">
+      <input
+        type="checkbox"
+        className="mt-1 h-4 w-4 shrink-0"
+        checked={compromisoIdoneidad.includes("sin_deterioro")}
+        onChange={(e) => {
+          setCompromisoIdoneidad((prev) =>
+            e.target.checked
+              ? [...prev, "sin_deterioro"]
+              : prev.filter((item) => item !== "sin_deterioro")
+          );
+        }}
+      />
+
+      <span className="text-sm text-gray-700 leading-6">
+        Producto sin signos de deterioro, contaminación o descomposición
+      </span>
+    </label>
+
+    {/* Check 3 */}
+    <label className="flex items-start gap-3 cursor-pointer">
+      <input
+        type="checkbox"
+        className="mt-1 h-4 w-4 shrink-0"
+        checked={compromisoIdoneidad.includes("conservacion")}
+        onChange={(e) => {
+          setCompromisoIdoneidad((prev) =>
+            e.target.checked
+              ? [...prev, "conservacion"]
+              : prev.filter((item) => item !== "conservacion")
+          );
+        }}
+      />
+
+      <span className="text-sm text-gray-700 leading-6">
+        Conservado según las condiciones establecidas por el fabricante
+      </span>
+    </label>
+  </div>
+</div>
             </div>
 
             <div className="mt-6 space-y-6">
