@@ -127,38 +127,54 @@ export interface ProductoIntencion {
   cantidad: number;
   unidad: UnidadMedida;
   pesoEstimadoKg: number;
-  vidaUtil: string; // ISO date
+  vidaUtil: string;
   tipoProducto: TipoProducto;
   procedencia: Procedencia;
-  // Información del lugar de recojo
+}
+
+export interface CalidadIntencion {
+  motivoDonacion: MotivoDonacion;
+  compromisoIdoneidad: CompromisoIdoneidad[];
+  condicionAlmacenamiento: CondicionAlmacenamiento;
+  fechaEstimadaEntrega: string;
+  descripcionGeneralDonacion: string;
+  incluyeProductosSensibles: ProductoSensible;
+  recomendacionesConsumo: string;
+  condicionProducto: string;
+  declaracionProducto: boolean;
+}
+
+export interface LogisticaIntencion {
   tipoLugar: TipoLugar;
   lugar: string;
   contactoPlanta: string;
   direccion: string;
   referencia: string;
+
   distrito: Distrito;
   provincia: Provincia;
   departamento: Departamento;
   codigoPostal: string;
-  // Accesos y requisitos de recojo
+
   tipoAcceso: TipoAcceso;
   horarioInicio: string;
   horarioFinal: string;
   diasAtencion: DiasAtencion[];
+
   requiereAutorizacion: "Si" | "No";
   anticipacion: Anticipacion;
   contactoAutorizacion: string;
   numeroContacto: string;
   requisitosIngreso: string[];
-  // Disponibilidad para recojo
+
   fechaDesde: string;
   fechaHasta: string;
   horarioDisponible: string;
   tiempoEstimadoCarga: string;
-  // Ubicacion en mapa
+
   latitud: string;
   longitud: string;
-  // Observaciones de accesos
+
   observacionesAcceso: string;
 }
 
@@ -178,26 +194,31 @@ export interface FotoAdjunta {
 
 export interface Intencion {
   id: string;
-  codigo: string; // INT-2026-0001
+  codigo: string;
+
+  // Datos generales
   donante: string;
   contacto: string;
-  fechaIntencion: string; // ISO
+  fechaIntencion: string;
   canal: Canal;
   responsable: string;
   tipoIntencion: TipoIntencion;
+
   estado: EstadoIntencion;
+
+  // Uno o muchos productos
   productos: ProductoIntencion[];
-  motivoDonacion?: MotivoDonacion;
-  compromisoIdoneidad?: CompromisoIdoneidad;
-  condicionAlmacenamiento?: CondicionAlmacenamiento;
-  fechaEstimadaEntrega?: string;
-  descripcionGeneralDonacion?: string;
-  incluyeProductosSensibles?: ProductoSensible;
-  recomendacionesConsumo?: string;
-  condicionProducto?: string;
-  declaracionProducto?: string;
+
+  // Un solo pase de calidad para toda la intención
+  calidad: CalidadIntencion;
+
+  // Un solo pase de logística para toda la intención
+  logistica: LogisticaIntencion;
+
+  // Adjuntos generales de la intención
   documentos: DocumentoAdjunto[];
   fotos: FotoAdjunta[];
+
   createdAt: string;
 }
 

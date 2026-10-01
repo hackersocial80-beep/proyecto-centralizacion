@@ -31,7 +31,7 @@ import { Input, Select } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { FormField } from "../components/ui/FormField";
-import Tooltip  from "../components/ui/Tooltip";
+import Tooltip from "../components/ui/Tooltip";
 
 interface Props {
   onCancelar: () => void;
@@ -48,6 +48,23 @@ interface ProductoForm {
   vidaUtil: string;
   tipoProducto: TipoProducto;
   procedencia: Procedencia;
+}
+
+interface CalidadForm {
+  motivoDonacion: MotivoDonacion | "";
+  compromisoIdoneidad: CompromisoIdoneidad[];
+  condicionAlmacenamiento: CondicionAlmacenamiento | "";
+  fechaEstimadaEntrega: string;
+  descripcionGeneralDonacion: string;
+  incluyeProductosSensibles: ProductoSensible | "";
+  recomendacionesConsumo: string;
+  condicionProducto: string;
+  declaracionProducto: boolean;
+  documentos: DocumentoAdjunto[];
+  fotos: FotoAdjunta[];
+}
+
+interface LogisticaForm {
   tipoLugar: TipoLugar;
   lugar: string;
   contactoPlanta: string;
@@ -57,21 +74,23 @@ interface ProductoForm {
   provincia: Provincia;
   departamento: Departamento;
   codigoPostal: string;
+
   tipoAcceso: TipoAcceso;
   horarioInicio: string;
   horarioFinal: string;
   diasAtencion: DiasAtencion[];
+
   requiereAutorizacion: "Si" | "No";
   anticipacion: Anticipacion;
-  motivosDonacion: MotivoDonacion[];
-  compromisosIdoneidad: CompromisoIdoneidad[];
   contactoAutorizacion: string;
   numeroContacto: string;
   requisitosIngreso: string[];
+
   fechaDesde: string;
   fechaHasta: string;
   horarioDisponible: string;
   tiempoEstimadoCarga: string;
+
   latitud: string;
   longitud: string;
   observacionesAcceso: string;
@@ -87,33 +106,6 @@ const emptyProducto = (): ProductoForm => ({
   vidaUtil: "",
   tipoProducto: "No perecible",
   procedencia: "Nacional",
-  tipoLugar: "Centro de acopio",
-  lugar: "",
-  contactoPlanta: "",
-  direccion: "",
-  referencia: "",
-  distrito: "Cercado de Lima",
-  provincia: "Canta",
-  departamento: "Lima",
-  codigoPostal: "",
-  tipoAcceso: "Peatonal",
-  horarioInicio: "",
-  horarioFinal: "",
-  diasAtencion: [],
-  requiereAutorizacion: "No",
-  anticipacion: "24 horas",
-  motivosDonacion: "Exceso de Produccion",
-  compromisosIdoneidad: "",
-  contactoAutorizacion: "",
-  numeroContacto: "",
-  requisitosIngreso: [],
-  fechaDesde: "",
-  fechaHasta: "",
-  horarioDisponible: "",
-  tiempoEstimadoCarga: "",
-  latitud: "",
-  longitud: "",
-  observacionesAcceso: "",
 });
 
 const toProductoIntencion = (p: ProductoForm): ProductoIntencion => ({
@@ -126,31 +118,6 @@ const toProductoIntencion = (p: ProductoForm): ProductoIntencion => ({
   vidaUtil: p.vidaUtil,
   tipoProducto: p.tipoProducto,
   procedencia: p.procedencia,
-  tipoLugar: p.tipoLugar,
-  lugar: p.lugar,
-  contactoPlanta: p.contactoPlanta,
-  direccion: p.direccion,
-  referencia: p.referencia,
-  distrito: p.distrito,
-  provincia: p.provincia,
-  departamento: p.departamento,
-  codigoPostal: p.codigoPostal,
-  tipoAcceso: p.tipoAcceso,
-  horarioInicio: p.horarioInicio,
-  horarioFinal: p.horarioFinal,
-  diasAtencion: p.diasAtencion,
-  requiereAutorizacion: p.requiereAutorizacion,
-  anticipacion: p.anticipacion,
-  contactoAutorizacion: p.contactoAutorizacion,
-  numeroContacto: p.numeroContacto,
-  requisitosIngreso: p.requisitosIngreso,
-  fechaDesde: p.fechaDesde,
-  fechaHasta: p.fechaHasta,
-  horarioDisponible: p.horarioDisponible,
-  tiempoEstimadoCarga: p.tiempoEstimadoCarga,
-  latitud: p.latitud,
-  longitud: p.longitud,
-  observacionesAcceso: p.observacionesAcceso,
 });
 
 export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
@@ -180,21 +147,51 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     emptyProducto(),
   ]);
 
-  const [motivoDonacion, setMotivoDonacion] = useState<string | "">("");
-  const [compromisoIdoneidad, setCompromisoIdoneidad] =
-    useState<CompromisoIdoneidad | "">("");
-  const [condicionAlmacenamiento, setCondicionAlmacenamiento] =
-    useState<CondicionAlmacenamiento | "">("");
-  const [fechaEstimadaEntrega, setFechaEstimadaEntrega] = useState("");
-  const [descripcionGeneralDonacion, setDescripcionGeneralDonacion] =
-    useState("");
-  const [incluyeProductosSensibles, setIncluyeProductosSensibles] =
-    useState<ProductoSensible | "">("");
-  const [recomendacionesConsumo, setRecomendacionesConsumo] = useState("");
-  const [condicionProducto, setCondicionProducto] = useState("");
-  const [declaracionProducto, setDeclaracionProducto] = useState("");
-  const [documentos, setDocumentos] = useState<DocumentoAdjunto[]>([]);
-  const [fotos, setFotos] = useState<FotoAdjunta[]>([]);
+  const [calidadForm, setCalidadForm] = useState<CalidadForm>({
+    motivoDonacion: "",
+    compromisoIdoneidad: [],
+    condicionAlmacenamiento: "",
+    fechaEstimadaEntrega: "",
+    descripcionGeneralDonacion: "",
+    incluyeProductosSensibles: "",
+    recomendacionesConsumo: "",
+    condicionProducto: "",
+    declaracionProducto: false,
+    documentos: [],
+    fotos: [],
+  });
+
+  const [logisticaForm, setLogisticaForm] = useState<LogisticaForm>({
+    tipoLugar: "Centro de acopio",
+    lugar: "",
+    contactoPlanta: "",
+    direccion: "",
+    referencia: "",
+    distrito: "Cercado de Lima",
+    provincia: "Canta",
+    departamento: "Lima",
+    codigoPostal: "",
+
+    tipoAcceso: "Peatonal",
+    horarioInicio: "",
+    horarioFinal: "",
+    diasAtencion: [],
+
+    requiereAutorizacion: "No",
+    anticipacion: "24 horas",
+    contactoAutorizacion: "",
+    numeroContacto: "",
+    requisitosIngreso: [],
+
+    fechaDesde: "",
+    fechaHasta: "",
+    horarioDisponible: "",
+    tiempoEstimadoCarga: "",
+
+    latitud: "",
+    longitud: "",
+    observacionesAcceso: "",
+  });
 
   const setProductoField = <K extends keyof ProductoForm>(
     id: string,
@@ -204,22 +201,55 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     setProductosForm((prev) =>
       prev.map((p) => (p.id === id ? { ...p, [key]: value } : p))
     );
+  const setCalidadField = <K extends keyof CalidadForm>(
+    key: K,
+    value: CalidadForm[K]
+  ) => {
+    setCalidadForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
+  const setLogisticaField = <K extends keyof LogisticaForm>(
+    key: K,
+    value: LogisticaForm[K]
+  ) => {
+    setLogisticaForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
   const agregarProducto = () =>
     setProductosForm((prev) => [...prev, emptyProducto()]);
 
   const handleConfirmDelete = () => {
     if (!confirmDelete) return;
+
     const { id, type } = confirmDelete;
+
     if (type === "producto") {
       if (productosForm.length > 1) {
-        setProductosForm((prev) => prev.filter((p) => p.id !== id));
+        setProductosForm((prev) =>
+          prev.filter((p) => p.id !== id)
+        );
       }
-    } else if (type === "documento") {
-      setDocumentos((prev) => prev.filter((d) => d.id !== id));
-    } else if (type === "foto") {
-      setFotos((prev) => prev.filter((f) => f.id !== id));
     }
+
+    if (type === "documento") {
+      setCalidadForm((prev) => ({
+        ...prev,
+        documentos: prev.documentos.filter((d) => d.id !== id),
+      }));
+    }
+
+    if (type === "foto") {
+      setCalidadForm((prev) => ({
+        ...prev,
+        fotos: prev.fotos.filter((f) => f.id !== id),
+      }));
+    }
+
     setConfirmDelete(null);
   };
 
@@ -231,7 +261,11 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
       tamanoKb: Math.round(f.size / 1024),
       url: URL.createObjectURL(f),
     }));
-    setDocumentos((prev) => [...prev, ...nuevos]);
+
+    setCalidadForm((prev) => ({
+      ...prev,
+      documentos: [...prev.documentos, ...nuevos],
+    }));
   };
 
   const handleAddFotos = (files: FileList) => {
@@ -240,9 +274,12 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
       nombre: f.name,
       url: URL.createObjectURL(f),
     }));
-    setFotos((prev) => [...prev, ...nuevas]);
-  };
 
+    setCalidadForm((prev) => ({
+      ...prev,
+      fotos: [...prev.fotos, ...nuevas],
+    }));
+  };
   const validateForm = () => {
     const errors: Record<string, string> = {};
     if (!donante.trim()) errors.donante = "El donante es obligatorio";
@@ -260,68 +297,130 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
     if (!validateForm()) {
-      firstErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      firstErrorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       return;
     }
 
     setIsSubmitting(true);
+
     try {
-      const productosValidos: ProductoIntencion[] = productosForm
-        .filter((p) => p.producto.trim() !== "")
-        .map((p) => ({
-          ...toProductoIntencion(p),
-          producto: p.producto.trim(),
-          descripcion: p.descripcion.trim(),
-          lugar: p.lugar.trim(),
-          contactoPlanta: p.contactoPlanta.trim(),
-          direccion: p.direccion.trim(),
-          referencia: p.referencia.trim(),
-          codigoPostal: p.codigoPostal.trim(),
-          contactoAutorizacion: p.contactoAutorizacion.trim(),
-          numeroContacto: p.numeroContacto.trim(),
-          latitud: p.latitud.trim(),
-          longitud: p.longitud.trim(),
-          observacionesAcceso: p.observacionesAcceso.trim(),
-        }));
+      const productosValidos: ProductoIntencion[] =
+        productosForm
+          .filter((p) => p.producto.trim() !== "")
+          .map((p) => ({
+            ...toProductoIntencion(p),
+            producto: p.producto.trim(),
+            descripcion: p.descripcion.trim(),
+          }));
 
       const year = new Date().getFullYear();
-      const seq = String(intencionStore.getAll().length + 1).padStart(4, "0");
+
+      const seq = String(
+        intencionStore.getAll().length + 1
+      ).padStart(4, "0");
+
       const codigo = `INT-${year}-${seq}`;
 
       const nueva: Intencion = {
         id: crypto.randomUUID(),
         codigo,
+
         donante: donante.trim(),
         contacto: contacto.trim(),
         fechaIntencion,
         canal,
-        responsable,
+        responsable: responsable.trim(),
         tipoIntencion,
+
         estado: "Pendiente",
+
+        // MUCHOS PRODUCTOS
         productos: productosValidos,
-        motivoDonacion: "Excedente de produccion",
-        compromisoIdoneidad: compromisoIdoneidad || undefined,
-        condicionAlmacenamiento: condicionAlmacenamiento || undefined,
-        fechaEstimadaEntrega: fechaEstimadaEntrega || undefined,
+
+        // CALIDAD - UNA SOLA
+        motivoDonacion:
+          calidadForm.motivoDonacion || undefined,
+
+        compromisoIdoneidad:
+          calidadForm.compromisoIdoneidad.length > 0
+            ? calidadForm.compromisoIdoneidad
+            : undefined,
+
+        condicionAlmacenamiento:
+          calidadForm.condicionAlmacenamiento || undefined,
+
+        fechaEstimadaEntrega:
+          calidadForm.fechaEstimadaEntrega || undefined,
+
         descripcionGeneralDonacion:
-          descripcionGeneralDonacion.trim() || undefined,
-        incluyeProductosSensibles: incluyeProductosSensibles || undefined,
-        recomendacionesConsumo: recomendacionesConsumo.trim() || undefined,
-        condicionProducto: condicionProducto.trim() || undefined,
-        declaracionProducto: declaracionProducto.trim() || undefined,
-        documentos,
-        fotos,
+          calidadForm.descripcionGeneralDonacion.trim() ||
+          undefined,
+
+        incluyeProductosSensibles:
+          calidadForm.incluyeProductosSensibles || undefined,
+
+        recomendacionesConsumo:
+          calidadForm.recomendacionesConsumo.trim() ||
+          undefined,
+
+        condicionProducto:
+          calidadForm.condicionProducto.trim() ||
+          undefined,
+
+        declaracionProducto:
+          calidadForm.declaracionProducto,
+
+        documentos: calidadForm.documentos,
+
+        fotos: calidadForm.fotos,
+
+        // LOGÍSTICA - UNA SOLA
+        logistica: {
+          ...logisticaForm,
+
+          lugar: logisticaForm.lugar.trim(),
+          contactoPlanta:
+            logisticaForm.contactoPlanta.trim(),
+          direccion:
+            logisticaForm.direccion.trim(),
+          referencia:
+            logisticaForm.referencia.trim(),
+          codigoPostal:
+            logisticaForm.codigoPostal.trim(),
+          contactoAutorizacion:
+            logisticaForm.contactoAutorizacion.trim(),
+          numeroContacto:
+            logisticaForm.numeroContacto.trim(),
+          latitud:
+            logisticaForm.latitud.trim(),
+          longitud:
+            logisticaForm.longitud.trim(),
+          observacionesAcceso:
+            logisticaForm.observacionesAcceso.trim(),
+        },
+
         createdAt: new Date().toISOString(),
       };
 
-      // Guardar en el store local para visualización inmediata
       intencionStore.add(nueva);
 
-      showToast("¡Intención guardada exitosamente en el sistema local!", "success");
+      showToast(
+        "¡Intención guardada exitosamente en el sistema local!",
+        "success"
+      );
+
       onGuardada();
     } catch (error: any) {
-      showToast(error.message || "Ocurrió un error al guardar la intención", "error");
+      showToast(
+        error.message ||
+        "Ocurrió un error al guardar la intención",
+        "error"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -594,23 +693,28 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               <Select
                 label="Motivo de donación"
-                value={motivoDonacion}
-                onChange={(e) => setMotivoDonacion(e.target.value as MotivoDonacion)}
+                value={calidadForm.motivoDonacion}
+                onChange={(e) => setCalidadField(
+                  "motivoDonacion",
+                  e.target.value as MotivoDonacion
+                )
+                }
               >
-                <option value="">Seleccionar motivo</option>
+
                 {catalogs.motivosDonacion.map((item: any) => (
                   <option key={item.id || item} value={item.id || item}>
                     {item.name || item}
                   </option>
                 ))}
               </Select>
-              
+
               <Select
                 label="Condición de almacenamiento"
-                value={condicionAlmacenamiento}
-                onChange={(e) => setCondicionAlmacenamiento(e.target.value as CondicionAlmacenamiento)}
+                value={calidadForm.condicionAlmacenamiento}
+                onChange={(e) => setCalidadField(
+                  "condicionAlmacenamiento",
+                  e.target.value as CondicionAlmacenamiento)}
               >
-                <option value="">Seleccionar condición</option>
                 {catalogs.condicionAlmacenamiento.map((item: any) => (
                   <option key={item.id || item} value={item.id || item}>
                     {item.name || item}
@@ -620,114 +724,134 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
               <Input
                 label="Fecha estimada de entrega"
                 type="date"
-                value={fechaEstimadaEntrega}
-                onChange={(e) => setFechaEstimadaEntrega(e.target.value)}
+                value={calidadForm.fechaEstimadaEntrega}
+                onChange={(e) => setCalidadField(
+                  "fechaEstimadaEntrega",
+                  e.target.value)}
               />
               <div>
-  <div className="flex items-center gap-1 mb-1">
-    <span>¿Incluye insumos sensibles?</span>
+                <div className="flex items-center gap-1 mb-1">
+                  <span>¿Incluye insumos sensibles?</span>
 
-    <Tooltip
-      content={
-        <>
-          <p className="font-semibold">Productos sensibles:</p>
-          <ul className="list-disc pl-4">
-            <li>Proteínas y derivados</li>
-            <li>Refrigerados o congelados</li>
-            <li>Suplementos alimenticios</li>
-            <li>Comida preparada</li>
-          </ul>
-        </>
-      }
-    >
-      <span className="cursor-help text-gray-500">ⓘ</span>
-    </Tooltip>
-  </div>
+                  <Tooltip
+                    content={
+                      <>
+                        <p className="font-semibold">Productos sensibles:</p>
+                        <ul className="list-disc pl-4">
+                          <li>Proteínas y derivados</li>
+                          <li>Refrigerados o congelados</li>
+                          <li>Suplementos alimenticios</li>
+                          <li>Comida preparada</li>
+                        </ul>
+                      </>
+                    }
+                  >
+                    <span className="cursor-help text-gray-500">ⓘ</span>
+                  </Tooltip>
+                </div>
 
-  <Select
-    value={incluyeProductosSensibles ? "true" : "false"}
-    onChange={(e) =>
-      setIncluyeProductosSensibles(e.target.value === "true")
-    }
-  >
-    <option value="false">No</option>
-    <option value="true">Sí</option>
-  </Select>
-</div>
+                <Select
+                  value={calidadForm.incluyeProductosSensibles ? "true" : "false"}
+                  onChange={(e) =>
+                    setCalidadField("incluyeProductosSensibles", e.target.value as ProductoSensible)
+                  }
+                >
+                  <option value="false">No</option>
+                  <option value="true">Sí</option>
+                </Select>
+              </div>
               <div className="col-span-2">
-  <label className="block text-sm font-medium text-gray-900 mb-3">
-    Compromiso de idoneidad
-  </label>
+                <label className="block text-sm font-medium text-gray-900 mb-3">
+                  Compromiso de idoneidad
+                </label>
 
-  <div className="grid grid-cols-3 gap-6 w-full">
-    {/* Check 1 */}
-    <label className="flex items-start gap-3 cursor-pointer">
-      <input
-        type="checkbox"
-        className="mt-1 h-4 w-4 shrink-0"
-        checked={compromisoIdoneidad.includes("envase_integro")}
-        onChange={(e) => {
-          setCompromisoIdoneidad((prev) =>
-            e.target.checked
-              ? [...prev, "envase_integro"]
-              : prev.filter((item) => item !== "envase_integro")
-          );
-        }}
-      />
+                <div className="grid grid-cols-3 gap-6 w-full">
+                  {/* Check 1 */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={calidadForm.compromisoIdoneidad.includes(
+                        "envase_integro"
+                      )}
 
-      <span className="text-sm text-gray-700 leading-6">
-        Envase íntegro y sellado (cuando aplique)
-      </span>
-    </label>
+                      onChange={(e) => {
+                        const value = "envase_integro";
 
-    {/* Check 2 */}
-    <label className="flex items-start gap-3 cursor-pointer">
-      <input
-        type="checkbox"
-        className="mt-1 h-4 w-4 shrink-0"
-        checked={compromisoIdoneidad.includes("sin_deterioro")}
-        onChange={(e) => {
-          setCompromisoIdoneidad((prev) =>
-            e.target.checked
-              ? [...prev, "sin_deterioro"]
-              : prev.filter((item) => item !== "sin_deterioro")
-          );
-        }}
-      />
+                        setCalidadField("compromisoIdoneidad",
+                          e.target.checked
+                            ? [...calidadForm.compromisoIdoneidad, value]
+                            : calidadForm.compromisoIdoneidad.filter(
+                              (item) => item !== value
+                            )
+                        );
+                      }}
+                      className="mt-1 h-4 w-4 shrink-0"
+                    />
 
-      <span className="text-sm text-gray-700 leading-6">
-        Producto sin signos de deterioro, contaminación o descomposición
-      </span>
-    </label>
+                    <span className="text-sm text-gray-700 leading-6">
+                      Envase íntegro y sellado (cuando aplique)
+                    </span>
+                  </label>
 
-    {/* Check 3 */}
-    <label className="flex items-start gap-3 cursor-pointer">
-      <input
-        type="checkbox"
-        className="mt-1 h-4 w-4 shrink-0"
-        checked={compromisoIdoneidad.includes("conservacion")}
-        onChange={(e) => {
-          setCompromisoIdoneidad((prev) =>
-            e.target.checked
-              ? [...prev, "conservacion"]
-              : prev.filter((item) => item !== "conservacion")
-          );
-        }}
-      />
+                  {/* Check 2 */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0"
+                      checked={calidadForm.compromisoIdoneidad.includes("sin_deterioro")}
+                      onChange={(e) => {
+                        const value = "sin_deterioro";
+                        setCalidadField(
+                          "compromisoIdoneidad",
+                          e.target.checked
+                            ? [...calidadForm.compromisoIdoneidad, value]
+                            : calidadForm.compromisoIdoneidad.filter(
+                              (item) => item !== value
+                            )
+                        );
+                      }}
+                    />
 
-      <span className="text-sm text-gray-700 leading-6">
-        Conservado según las condiciones establecidas por el fabricante
-      </span>
-    </label>
-  </div>
-</div>
+                    <span className="text-sm text-gray-700 leading-6">
+                      Producto sin signos de deterioro, contaminación o descomposición
+                    </span>
+                  </label>
+
+                  {/* Check 3 */}
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0"
+                      checked={calidadForm.compromisoIdoneidad.includes(
+                        "conservacion"
+                      )}
+                      onChange={(e) => {
+                        const value = "conservacion";
+
+                        setCalidadField(
+                          "compromisoIdoneidad",
+                          e.target.checked
+                            ? [...calidadForm.compromisoIdoneidad, value]
+                            : calidadForm.compromisoIdoneidad.filter(
+                              (item) => item !== value
+                            )
+                        );
+                      }}
+                    />
+
+                    <span className="text-sm text-gray-700 leading-6">
+                      Conservado según las condiciones establecidas por el fabricante
+                    </span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 space-y-6">
               <FormField label="Descripción general de la donación">
                 <textarea
-                  value={descripcionGeneralDonacion}
-                  onChange={(e) => setDescripcionGeneralDonacion(e.target.value)}
+                  value={calidadForm.descripcionGeneralDonacion}
+                  onChange={(e) => setCalidadField("descripcionGeneralDonacion", e.target.value)}
                   rows={4}
                   placeholder="Describe la donación..."
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 transition-all focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
@@ -736,8 +860,8 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
               <FormField label="Recomendaciones de consumo">
                 <textarea
-                  value={recomendacionesConsumo}
-                  onChange={(e) => setRecomendacionesConsumo(e.target.value)}
+                  value={calidadForm.recomendacionesConsumo}
+                  onChange={(e) => setCalidadField("recomendacionesConsumo", e.target.value)}
                   rows={3}
                   placeholder="Ingresa recomendaciones de consumo..."
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 transition-all focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
@@ -748,8 +872,8 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 <label className="flex cursor-pointer items-start gap-3">
                   <input
                     type="checkbox"
-                    checked={declaracionProducto}
-                    onChange={(e) => setDeclaracionProducto(e.target.checked)}
+                    checked={calidadForm.declaracionProducto}
+                    onChange={(e) => setCalidadField("declaracionProducto", e.target.checked)}
                     className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
                   />
                   <div>
@@ -840,359 +964,334 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 <Truck className="h-5 w-5 text-[#5cb89a]" />
                 Lugar de Recojo
               </h2>
-              <div className="space-y-6">
-                {productosForm.map((p) => (
-                  <div
-                    key={p.id}
-                    className="rounded-xl border border-gray-200 bg-gray-50 p-5"
-                  >
-                    <div className="mb-4 flex items-center justify-between border-b border-gray-200 pb-3">
-                      <p className="text-sm font-bold text-gray-700">
-                        {p.producto || "Producto"}
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                      <Select
-                        label="Tipo de Lugar"
-                        value={p.tipoLugar}
-                        onChange={(e) => setProductoField(p.id, "tipoLugar", e.target.value as TipoLugar)}
-                      >
-                        {catalogs.tipoLugar.map((u: any) => (
-                          <option key={u.id} value={u.id}>
-                            {u.name}
-                          </option>
-                        ))}
-                      </Select>
-                      <Input
-                        label="Nombre del lugar / Planta"
-                        value={p.lugar}
-                        onChange={(e) => setProductoField(p.id, "lugar", e.target.value)}
-                        placeholder="Nombre del Lugar / Planta"
-                      />
-                      <Input
-                        label="Persona contacto en Planta"
-                        value={p.contactoPlanta}
-                        onChange={(e) => setProductoField(p.id, "contactoPlanta", e.target.value)}
-                        placeholder="Persona contacto en Planta"
-                      />
-                      <div className="md:col-span-2">
-                        <Input
-                          label="Dirección"
-                          value={p.direccion}
-                          onChange={(e) => setProductoField(p.id, "direccion", e.target.value)}
-                          placeholder="Dirección"
-                        />
-                      </div>
-                      <Input
-                        label="Referencia"
-                        value={p.referencia}
-                        onChange={(e) => setProductoField(p.id, "referencia", e.target.value)}
-                        placeholder="Referencia"
-                      />
-                      <Input
-                        label="Código Postal"
-                        value={p.codigoPostal}
-                        onChange={(e) => setProductoField(p.id, "codigoPostal", e.target.value)}
-                        placeholder="Código Postal"
-                      />
-                      <div className="lg:col-span-4">
-                        <UbigeoSelector
-                          productoId={p.id}
-                          initialValues={{
-                            departamento: p.departamento,
-                            provincia: p.provincia,
-                            distrito: p.distrito
-                          }}
-                          onChange={setProductoField}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Select
+                  label="Tipo de Lugar"
+                  value={logisticaForm.tipoLugar}
+                  onChange={(e) => setLogisticaField("tipoLugar", e.target.value as TipoLugar)}
+                >
+                  {catalogs.tipoLugar.map((u: any) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </Select>
+                <Input
+                  label="Nombre del lugar / Planta"
+                  value={logisticaForm.lugar}
+                  onChange={(e) => setLogisticaField("lugar", e.target.value)}
+                  placeholder="Nombre del Lugar / Planta"
+                />
+                <Input
+                  label="Persona contacto en Planta"
+                  value={logisticaForm.contactoPlanta}
+                  onChange={(e) => setLogisticaField("contactoPlanta", e.target.value)}
+                  placeholder="Persona contacto en Planta"
+                />
+                <div className="md:col-span-2">
+                  <Input
+                    label="Dirección"
+                    value={logisticaForm.direccion}
+                    onChange={(e) => setLogisticaField("direccion", e.target.value)}
+                    placeholder="Dirección"
+                  />
+                </div>
+                <Input
+                  label="Referencia"
+                  value={logisticaForm.referencia}
+                  onChange={(e) => setLogisticaField("referencia", e.target.value)}
+                  placeholder="Referencia"
+                />
+                <Input
+                  label="Código Postal"
+                  value={logisticaForm.codigoPostal}
+                  onChange={(e) => setLogisticaField("codigoPostal", e.target.value)}
+                  placeholder="Código Postal"
+                />
+                <div className="lg:col-span-4">
+                  <UbigeoSelector
+                    initialValues={{
+                      departamento: logisticaForm.departamento,
+                      provincia: logisticaForm.provincia,
+                      distrito: logisticaForm.distrito
+                    }}
+                    onChange={(key, value) =>
+                      setLogisticaField(
+                        key as keyof LogisticaForm,
+                        value as never
+                      )
+                    }
+                  />
+                </div>
               </div>
             </section>
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-lg font-bold text-gray-900 flex items-center gap-2">
+              <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-900">
                 <Package className="h-5 w-5 text-[#5cb89a]" />
                 Ubicación en mapa
               </h2>
-              <div className="space-y-6">
-                {productosForm.map((p) => {
-                  const lat = parseFloat(p.latitud);
-                  const lng = parseFloat(p.longitud);
-                  const tieneCoord =
-                    !isNaN(lat) &&
-                    !isNaN(lng) &&
-                    p.latitud.trim() !== "" &&
-                    p.longitud.trim() !== "" &&
-                    lat >= -90 &&
-                    lat <= 90 &&
-                    lng >= -180 &&
-                    lng <= 180;
-                  const delta = 0.01;
-                  const mapUrl = tieneCoord
-                    ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta},${lat - delta},${lng + delta},${lat + delta}&layer=mapnik&marker=${lat},${lng}`
-                    : "";
-                  return (
-                    <div
-                      key={p.id}
-                      className="rounded-xl border border-gray-200 bg-gray-50 p-5"
-                    >
-                      <p className="mb-4 text-sm font-bold text-gray-700">
-                        {p.producto ? `Mapa - ${p.producto}` : `Mapa - Producto`}
-                      </p>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <Input
-                          label="Latitud"
-                          value={p.latitud}
-                          onChange={(e) => setProductoField(p.id, "latitud", e.target.value)}
-                          placeholder="Ej. -12.046374"
-                          helperText="Puedes obtenerla desde Google Maps"
-                        />
-                        <Input
-                          label="Longitud"
-                          value={p.longitud}
-                          onChange={(e) => setProductoField(p.id, "longitud", e.target.value)}
-                          placeholder="Ej. -77.042793"
-                          helperText="Puedes obtenerla desde Google Maps"
-                        />
-                      </div>
-                      <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white">
-                        {tieneCoord ? (
-                          <>
-                            <iframe
-                              title={`Mapa de ubicación ${lat},${lng}`}
-                              src={mapUrl}
-                              className="h-[300px] w-full border-0"
-                            />
-                            <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-3 py-1.5 text-[11px] text-gray-500">
-                              <span>© OpenStreetMap contributors</span>
-                              <a
-                                href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[#5cb89a] hover:underline"
-                              >
-                                Ver mapa más grande
-                              </a>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex h-[300px] items-center justify-center px-4 text-center text-sm text-gray-500">
-                            Ingresa latitud y longitud válidas para visualizar el mapa.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
+                <Input
+                  label="Latitud"
+                  value={logisticaForm.latitud}
+                  onChange={(e) =>
+                    setLogisticaField("latitud", e.target.value)
+                  }
+                  placeholder="Ej. -12.046374"
+                  helperText="Puedes obtenerla desde Google Maps"
+                />
+
+                <Input
+                  label="Longitud"
+                  value={logisticaForm.longitud}
+                  onChange={(e) =>
+                    setLogisticaField("longitud", e.target.value)
+                  }
+                  placeholder="Ej. -77.042793"
+                  helperText="Puedes obtenerla desde Google Maps"
+                />
+
               </div>
             </section>
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-lg font-bold text-gray-900 flex items-center gap-2">
+              <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-900">
                 <Truck className="h-5 w-5 text-[#5cb89a]" />
                 Accesos y requisitos de recojo
               </h2>
-              <div className="space-y-6">
-                {productosForm.map((p) => (
-                  <div
-                    key={p.id}
-                    className="rounded-xl border border-gray-200 bg-gray-50 p-5"
-                  >
-                    <div className="mb-4 flex items-center justify-between border-b border-gray-200 pb-3">
-                      <p className="text-sm font-bold text-gray-700">
-                        {p.producto || "Producto"} - Accesos
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                      <Select
-                        label="Tipo de acceso"
-                        value={p.tipoAcceso}
-                        onChange={(e) => setProductoField(p.id, "tipoAcceso", e.target.value as TipoAcceso)}
-                      >
-                        {catalogs.tipoAcceso.map((u: any) => (
-                          <option key={u.id || u} value={u.id || u}>
-                            {u.name || u}
-                          </option>
-                        ))}
-                      </Select>
-                      <FormField label="Horario de atención">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="time"
-                            value={p.horarioInicio}
-                            onChange={(e) => setProductoField(p.id, "horarioInicio", e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
-                          />
-                          <span className="text-xs text-gray-500">a</span>
-                          <input
-                            type="time"
-                            value={p.horarioFinal}
-                            onChange={(e) => setProductoField(p.id, "horarioFinal", e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
-                          />
-                        </div>
-                      </FormField>
-                      <FormField label="Días de atención" className="md:col-span-2">
-                        <div className="flex flex-wrap gap-2">
-                          {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map((dia) => {
-                            const seleccionado = p.diasAtencion.includes(dia as DiasAtencion);
-                            return (
-                              <label
-                                key={dia}
-                                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${seleccionado
-                                  ? "border-[#5cb89a] bg-[#5cb89a]/10 text-[#318b70]"
-                                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                  }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={seleccionado}
-                                  onChange={(e) => {
-                                    const nuevosDias: DiasAtencion[] = e.target.checked
-                                      ? [...p.diasAtencion, dia as DiasAtencion]
-                                      : p.diasAtencion.filter((d) => d !== dia);
-                                    setProductoField(p.id, "diasAtencion", nuevosDias);
-                                  }}
-                                  className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
-                                />
-                                <span>{dia}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </FormField>
-                      <FormField label="¿Requiere autorización previa?">
-                        <div className="flex items-center gap-6">
-                          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-                            <input
-                              type="radio"
-                              name={`autorizacion-${p.id}`}
-                              value="Si"
-                              checked={p.requiereAutorizacion === "Si"}
-                              onChange={(e) => setProductoField(p.id, "requiereAutorizacion", e.target.value as "Si" | "No")}
-                              className="h-4 w-4 text-[#5cb89a] focus:ring-[#5cb89a]"
-                            />
-                            Sí
-                          </label>
-                          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-                            <input
-                              type="radio"
-                              name={`autorizacion-${p.id}`}
-                              value="No"
-                              checked={p.requiereAutorizacion === "No"}
-                              onChange={(e) => setProductoField(p.id, "requiereAutorizacion", e.target.value as "Si" | "No")}
-                              className="h-4 w-4 text-[#5cb89a] focus:ring-[#5cb89a]"
-                            />
-                            No
-                          </label>
-                        </div>
-                      </FormField>
-                      <Select
-                        label="Tiempo de anticipación requerida"
-                        value={p.anticipacion}
-                        onChange={(e) => setProductoField(p.id, "anticipacion", e.target.value as Anticipacion)}
-                      >
-                        {catalogs.anticipacion.map((t: any) => (
-                          <option key={t.id || t} value={t.id || t}>
-                            {t.name || t}
-                          </option>
-                        ))}
-                      </Select>
-                      <Input
-                        label="Contacto de autorización"
-                        value={p.contactoAutorizacion}
-                        onChange={(e) => setProductoField(p.id, "contactoAutorizacion", e.target.value)}
-                        placeholder="Contacto de Autorización"
-                      />
-                      <Input
-                        label="Numero de contacto"
-                        value={p.numeroContacto}
-                        onChange={(e) => setProductoField(p.id, "numeroContacto", e.target.value)}
-                        placeholder="Número de Contacto"
-                      />
-                      <FormField label="Requisitos para el ingreso a planta" className="lg:col-span-4">
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                          {["DNI vigente", "Carnet de sanidad", "Autorización del donante", "Uso obligatorio de EPP", "Seguro SCTR", "Inducción de seguridad", "Vehículo con sello de fumigación", "Otros requisitos"].map((requisito) => {
-                            const seleccionado = p.requisitosIngreso.includes(requisito);
-                            return (
-                              <label
-                                key={requisito}
-                                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition ${seleccionado
-                                  ? "border-[#5cb89a] bg-[#5cb89a]/10 text-[#318b70]"
-                                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                  }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={seleccionado}
-                                  onChange={(e) => {
-                                    const nuevosRequisitos = e.target.checked
-                                      ? [...p.requisitosIngreso, requisito]
-                                      : p.requisitosIngreso.filter((r) => r !== requisito);
-                                    setProductoField(p.id, "requisitosIngreso", nuevosRequisitos);
-                                  }}
-                                  className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]"
-                                />
-                                <span>{requisito}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </FormField>
-                    </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+                <Select
+                  label="Tipo de acceso"
+                  value={logisticaForm.tipoAcceso}
+                  onChange={(e) =>
+                    setLogisticaField(
+                      "tipoAcceso",
+                      e.target.value as TipoAcceso
+                    )
+                  }
+                >
+                  {catalogs.tipoAcceso.map((item: any) => (
+                    <option key={item.id || item} value={item.id || item}>
+                      {item.name || item}
+                    </option>
+                  ))}
+                </Select>
+
+                <FormField label="Horario de atención">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={logisticaForm.horarioInicio}
+                      onChange={(e) =>
+                        setLogisticaField(
+                          "horarioInicio",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+
+                    <span>a</span>
+
+                    <input
+                      type="time"
+                      value={logisticaForm.horarioFinal}
+                      onChange={(e) =>
+                        setLogisticaField(
+                          "horarioFinal",
+                          e.target.value
+                        )
+                      }
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
                   </div>
-                ))}
+                </FormField>
+
+                <FormField
+                  label="Días de atención"
+                  className="md:col-span-2"
+                >
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      "Lunes",
+                      "Martes",
+                      "Miércoles",
+                      "Jueves",
+                      "Viernes",
+                      "Sábado",
+                      "Domingo",
+                    ].map((dia) => {
+                      const seleccionado =
+                        logisticaForm.diasAtencion.includes(
+                          dia as DiasAtencion
+                        );
+
+                      return (
+                        <label
+                          key={dia}
+                          className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${seleccionado
+                            ? "border-[#5cb89a] bg-[#5cb89a]/10"
+                            : "border-gray-300 bg-white"
+                            }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={seleccionado}
+                            onChange={(e) => {
+                              const nuevos = e.target.checked
+                                ? [
+                                  ...logisticaForm.diasAtencion,
+                                  dia as DiasAtencion,
+                                ]
+                                : logisticaForm.diasAtencion.filter(
+                                  (d) => d !== dia
+                                );
+
+                              setLogisticaField(
+                                "diasAtencion",
+                                nuevos
+                              );
+                            }}
+                          />
+
+                          {dia}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </FormField>
+
+                <FormField label="¿Requiere autorización previa?">
+                  <div className="flex gap-6">
+                    <label>
+                      <input
+                        type="radio"
+                        checked={logisticaForm.requiereAutorizacion === "Si"}
+                        onChange={() =>
+                          setLogisticaField(
+                            "requiereAutorizacion",
+                            "Si"
+                          )
+                        }
+                      />
+                      <span className="ml-2">Sí</span>
+                    </label>
+
+                    <label>
+                      <input
+                        type="radio"
+                        checked={logisticaForm.requiereAutorizacion === "No"}
+                        onChange={() =>
+                          setLogisticaField(
+                            "requiereAutorizacion",
+                            "No"
+                          )
+                        }
+                      />
+                      <span className="ml-2">No</span>
+                    </label>
+                  </div>
+                </FormField>
+
+                <Select
+                  label="Tiempo de anticipación requerida"
+                  value={logisticaForm.anticipacion}
+                  onChange={(e) =>
+                    setLogisticaField(
+                      "anticipacion",
+                      e.target.value as Anticipacion
+                    )
+                  }
+                >
+                  {catalogs.anticipacion.map((item: any) => (
+                    <option key={item.id || item} value={item.id || item}>
+                      {item.name || item}
+                    </option>
+                  ))}
+                </Select>
+
+                <Input
+                  label="Contacto de autorización"
+                  value={logisticaForm.contactoAutorizacion}
+                  onChange={(e) =>
+                    setLogisticaField(
+                      "contactoAutorizacion",
+                      e.target.value
+                    )
+                  }
+                />
+
+                <Input
+                  label="Número de contacto"
+                  value={logisticaForm.numeroContacto}
+                  onChange={(e) =>
+                    setLogisticaField(
+                      "numeroContacto",
+                      e.target.value
+                    )
+                  }
+                />
+
               </div>
             </section>
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 text-lg font-bold text-gray-900 flex items-center gap-2">
+              <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-900">
                 <Truck className="h-5 w-5 text-[#5cb89a]" />
                 Disponibilidad para recojo
               </h2>
-              <div className="space-y-6">
-                {productosForm.map((p) => (
-                  <div
-                    key={p.id}
-                    className="rounded-xl border border-gray-200 bg-gray-50 p-5"
-                  >
-                    <div className="mb-4 flex items-center justify-between border-b border-gray-200 pb-3">
-                      <p className="text-sm font-bold text-gray-700">
-                        {p.producto || "Producto"} - Disponibilidad
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                      <Input
-                        label="Fecha desde"
-                        type="date"
-                        value={p.fechaDesde}
-                        onChange={(e) => setProductoField(p.id, "fechaDesde", e.target.value)}
-                      />
-                      <Input
-                        label="Fecha hasta"
-                        type="date"
-                        value={p.fechaHasta}
-                        onChange={(e) => setProductoField(p.id, "fechaHasta", e.target.value)}
-                      />
-                      <Input
-                        label="Horario disponible"
-                        value={p.horarioDisponible}
-                        onChange={(e) => setProductoField(p.id, "horarioDisponible", e.target.value)}
-                        placeholder="Ej. 09:00 - 17:00"
-                      />
-                      <Input
-                        label="Tiempo estimado de carga (min)"
-                        type="number"
-                        min="0"
-                        value={p.tiempoEstimadoCarga}
-                        onChange={(e) => setProductoField(p.id, "tiempoEstimadoCarga", e.target.value)}
-                      />
-                    </div>
-                  </div>
-                ))}
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+                <Input
+                  label="Fecha desde"
+                  type="date"
+                  value={logisticaForm.fechaDesde}
+                  onChange={(e) =>
+                    setLogisticaField("fechaDesde", e.target.value)
+                  }
+                />
+
+                <Input
+                  label="Fecha hasta"
+                  type="date"
+                  value={logisticaForm.fechaHasta}
+                  onChange={(e) =>
+                    setLogisticaField("fechaHasta", e.target.value)
+                  }
+                />
+
+                <Input
+                  label="Horario disponible"
+                  value={logisticaForm.horarioDisponible}
+                  onChange={(e) =>
+                    setLogisticaField(
+                      "horarioDisponible",
+                      e.target.value
+                    )
+                  }
+                  placeholder="Ej. 09:00 - 17:00"
+                />
+
+                <Input
+                  label="Tiempo estimado de carga (min)"
+                  type="number"
+                  min="0"
+                  value={logisticaForm.tiempoEstimadoCarga}
+                  onChange={(e) =>
+                    setLogisticaField(
+                      "tiempoEstimadoCarga",
+                      e.target.value
+                    )
+                  }
+                />
+
               </div>
             </section>
           </div>
