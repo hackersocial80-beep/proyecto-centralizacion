@@ -277,7 +277,7 @@ export default function CalidadPage({ onVolver }: Props) {
                   </div>
                 )}
 
-                {currentStep === 2 && (
+                {currentStep === 3 && (
                   <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <CheckCircle2 className="h-4 w-4 text-[#5cb89a]" /> Evaluación de Calidad e Inocuidad
@@ -300,7 +300,7 @@ export default function CalidadPage({ onVolver }: Props) {
                   </section>
                 )}
 
-                {currentStep === 4 && (
+                {currentStep === 2 && (
                   <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <FileText className="h-4 w-4 text-[#5cb89a]" /> Validación de Documentos y Evidencias
@@ -352,7 +352,7 @@ export default function CalidadPage({ onVolver }: Props) {
                   </section>
                 )}
 
-                {currentStep === 3 && (
+                {currentStep === 4 && (
                   <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <CheckCircle2 className="h-4 w-4 text-[#5cb89a]" /> Veredicto Final de Calidad

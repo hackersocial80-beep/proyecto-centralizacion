@@ -122,11 +122,10 @@ export default function IntencionPage({
                         setSeleccionadaId(i.id);
                         setTab("productos");
                       }}
-                      className={`flex w-full items-start justify-between gap-2 px-4 py-3 text-left transition-colors ${
-                        activo
+                      className={`flex w-full items-start justify-between gap-2 px-4 py-3 text-left transition-colors ${activo
                           ? "bg-[#5cb89a]/10 border-l-4 border-[#5cb89a]"
                           : "hover:bg-gray-50 border-l-4 border-transparent"
-                      }`}
+                        }`}
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-gray-900">
@@ -136,17 +135,15 @@ export default function IntencionPage({
                           {i.codigo} - {i.fechaIntencion}
                         </p>
                         <span
-                          className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                            estadoColor[i.estado]
-                          }`}
+                          className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${estadoColor[i.estado]
+                            }`}
                         >
                           {i.estado}
                         </span>
                       </div>
                       <ChevronRight
-                        className={`mt-1 h-4 w-4 shrink-0 ${
-                          activo ? "text-[#5cb89a]" : "text-gray-400"
-                        }`}
+                        className={`mt-1 h-4 w-4 shrink-0 ${activo ? "text-[#5cb89a]" : "text-gray-400"
+                          }`}
                       />
                     </button>
                   </li>
@@ -195,22 +192,20 @@ export default function IntencionPage({
                   <button
                     type="button"
                     onClick={() => setTab("productos")}
-                    className={`border-b-2 py-3 text-sm font-medium transition-colors ${
-                      tab === "productos"
+                    className={`border-b-2 py-3 text-sm font-medium transition-colors ${tab === "productos"
                         ? "border-[#5cb89a] text-[#5cb89a]"
                         : "border-transparent text-gray-500 hover:text-gray-700"
-                    }`}
+                      }`}
                   >
                     Productos ({seleccionada.productos.length})
                   </button>
                   <button
                     type="button"
                     onClick={() => setTab("detalle")}
-                    className={`border-b-2 py-3 text-sm font-medium transition-colors ${
-                      tab === "detalle"
+                    className={`border-b-2 py-3 text-sm font-medium transition-colors ${tab === "detalle"
                         ? "border-[#5cb89a] text-[#5cb89a]"
                         : "border-transparent text-gray-500 hover:text-gray-700"
-                    }`}
+                      }`}
                   >
                     Detalle
                   </button>
@@ -227,16 +222,16 @@ export default function IntencionPage({
                 ) : (
                   <DetalleIntencion
                     motivoDonacion={seleccionada.motivoDonacion ?? ""}
-                    compromisoIdoneidad={seleccionada.compromisoIdoneidad ?? ""}
+                    compromisoIdoneidad={seleccionada.compromisoIdoneidad ?? []}
                     condicionAlmacenamiento={seleccionada.condicionAlmacenamiento ?? ""}
                     fechaEstimadaEntrega={seleccionada.fechaEstimadaEntrega ?? ""}
                     descripcionGeneralDonacion={seleccionada.descripcionGeneralDonacion ?? ""}
                     incluyeProductosSensibles={seleccionada.incluyeProductosSensibles ?? ""}
                     recomendacionesConsumo={seleccionada.recomendacionesConsumo ?? ""}
                     condicionProducto={seleccionada.condicionProducto ?? ""}
-                    declaracionProducto={seleccionada.declaracionProducto ?? ""}
-                    documentos={seleccionada.documentos}
-                    fotos={seleccionada.fotos}
+                    declaracionProducto={seleccionada.declaracionProducto ?? false}
+                    documentos={seleccionada.documentos ?? []}
+                    fotos={seleccionada.fotos ?? []}
                   />
                 )}
               </div>
