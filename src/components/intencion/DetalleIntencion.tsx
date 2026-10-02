@@ -96,31 +96,54 @@ export default function DetalleIntencion({
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-800">
-            Compromiso de idoneidad del producto
-          </label>
-          {editable ? (
-            <select
-              value={compromisoIdoneidad}
-              onChange={(e) =>
-                onChange?.({
-                  compromisoIdoneidad: e.target.value as CompromisoIdoneidad,
-                })
-              }
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20"
-            >
-              <option value="">Seleccionar compromiso</option>
-              {CENTROS_ACOPIO.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
-              {compromisoIdoneidad || "Sin asignar"}
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            Compromiso de idoneidad
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={compromisoIdoneidad.includes("envase_integro")}
+                readOnly
+                className="mt-1 h-4 w-4"
+              />
+
+              <span className="text-sm text-gray-700">
+                Envase íntegro y sellado (cuando aplique)
+              </span>
             </div>
-          )}
+
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={compromisoIdoneidad.includes("sin_deterioro")}
+                readOnly
+                className="mt-1 h-4 w-4"
+              />
+
+              <span className="text-sm text-gray-700">
+                Producto sin signos de deterioro,
+                contaminación o descomposición
+              </span>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={compromisoIdoneidad.includes("conservacion")}
+                readOnly
+                className="mt-1 h-4 w-4"
+              />
+
+              <span className="text-sm text-gray-700">
+                Conservado según las condiciones
+                establecidas por el fabricante
+              </span>
+            </div>
+
+          </div>
         </div>
 
         <div>

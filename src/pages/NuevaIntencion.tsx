@@ -898,14 +898,14 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                     onChange={handleAddDocumentos}
                     className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-[#5cb89a]/10 file:text-[#5cb89a] hover:file:bg-[#5cb89a]/20"
                   />
-                  {documentos.length > 0 && (
+                  {calidadForm.documentos.length > 0 && (
                     <div className="mt-4 space-y-2">
-                      {documentos.map((documento) => (
+                      {calidadForm.documentos.map((documento) => (
                         <div
                           key={documento.id}
                           className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
                         >
-                          <span className="text-sm text-gray-700">{documento.name}</span>
+                          <span className="text-sm text-gray-700">{documento.nombre}</span>
                           <Button
                             variant="ghost"
                             className="text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 h-7"
@@ -932,14 +932,14 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                     onChange={handleAddFotos}
                     className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-[#5cb89a]/10 file:text-[#5cb89a] hover:file:bg-[#5cb89a]/20"
                   />
-                  {fotos.length > 0 && (
+                  {calidadForm.fotos.length > 0 && (
                     <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-                      {fotos.map((foto) => (
+                      {calidadForm.fotos.map((foto) => (
                         <div
                           key={foto.id}
                           className="relative rounded-lg border border-gray-200 bg-white p-2"
                         >
-                          <img src={foto.url} alt={foto.name} className="h-32 w-full rounded object-cover" />
+                          <img src={foto.url} alt={foto.nombre} className="h-32 w-full rounded object-cover" />
                           <Button
                             variant="ghost"
                             className="absolute top-1 right-1 p-1 h-7 w-7 rounded-full bg-white/80 text-red-600 hover:bg-white"
