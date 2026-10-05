@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent, useRef } from "react";
-import { Save, Trash2, Loader2, FileText, Package, CheckCircle, Truck } from "lucide-react";
+import { Save, Trash2, Loader2, FileText, Package, CheckCircle, Truck, Upload, Download } from "lucide-react";
 import ProductosGrid from "../components/intencion/ProductosGrid";
 import UbigeoSelector from "../components/intencion/UbigeoSelector";
 import {
@@ -120,6 +120,45 @@ const toProductoIntencion = (p: ProductoForm): ProductoIntencion => ({
   procedencia: p.procedencia,
 });
 
+const normalizeHeader = (value: string) =>
+  value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+// CSV parser that supports quoted fields, commas/semicolons and escaped quotes.
+const parseCsv = (text: string): string[][] => {
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
+  const delimiter = (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ";" : ",";
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let value = "";
+  let quoted = false;
+
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === '"') {
+      if (quoted && text[i + 1] === '"') {
+        value += '"';
+        i += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === delimiter && !quoted) {
+      row.push(value.trim());
+      value = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && text[i + 1] === "\n") i += 1;
+      row.push(value.trim());
+      if (row.some((cell) => cell !== "")) rows.push(row);
+      row = [];
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+  row.push(value.trim());
+  if (row.some((cell) => cell !== "")) rows.push(row);
+  return rows;
+};
+
 export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   const catalogs = useCatalogs();
   const { showToast } = useToast();
@@ -222,6 +261,74 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   };
   const agregarProducto = () =>
     setProductosForm((prev) => [...prev, emptyProducto()]);
+
+  const handleImportarProductos = async (file?: File) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      showToast("Adjunta un archivo CSV. Puedes guardar una hoja de Excel como CSV.", "error");
+      return;
+    }
+
+    try {
+      const rows = parseCsv((await file.text()).replace(/^\uFEFF/, ""));
+      if (rows.length < 2) throw new Error("El archivo no contiene filas de productos.");
+
+      const headers = rows[0].map(normalizeHeader);
+      const findColumn = (...names: string[]) => headers.findIndex((header) => names.includes(header));
+      const columns = {
+        producto: findColumn("producto", "nombre", "nombreproducto", "product", "productname"),
+        descripcion: findColumn("descripcion", "detalle", "description"),
+        cantidad: findColumn("cantidad", "cantidadofrecida", "offeredquantity", "quantity"),
+        unidad: findColumn("unidad", "unidadmedida", "unit", "unitcode"),
+        peso: findColumn("pesoestimadokg", "pesoestimado", "peso", "estimatedweight"),
+        vidaUtil: findColumn("vidautil", "fechadevencimiento", "fechacaducidad", "expirationdate"),
+        tipo: findColumn("tipoproducto", "tipo", "producttype", "producttypecode"),
+        procedencia: findColumn("procedencia", "origen", "origin", "origincode"),
+      };
+
+      if (columns.producto < 0) {
+        throw new Error("Falta la columna obligatoria 'Producto' o 'Nombre'.");
+      }
+
+      const imported = rows.slice(1).flatMap((cells) => {
+        const get = (index: number) => index >= 0 ? (cells[index] ?? "").trim() : "";
+        const producto = get(columns.producto);
+        if (!producto) return [];
+        const number = (raw: string, fallback: number) => {
+          const parsed = Number(raw.replace(",", "."));
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
+
+        return [{
+          id: crypto.randomUUID(),
+          producto,
+          descripcion: get(columns.descripcion),
+          cantidad: String(number(get(columns.cantidad), 1)),
+          unidad: (get(columns.unidad) || "unidad") as UnidadMedida,
+          pesoEstimadoKg: String(number(get(columns.peso), 0)),
+          vidaUtil: get(columns.vidaUtil),
+          tipoProducto: (get(columns.tipo) || "No perecible") as TipoProducto,
+          procedencia: (get(columns.procedencia) || "Nacional") as Procedencia,
+        }];
+      });
+
+      if (imported.length === 0) throw new Error("No se encontraron productos con nombre en el archivo.");
+      setProductosForm((prev) => [...prev.filter((item) => item.producto.trim()), ...imported]);
+      showToast(`Se cargaron ${imported.length} productos desde el archivo.`, "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "No se pudo leer el archivo.", "error");
+    }
+  };
+
+  const descargarPlantillaProductos = () => {
+    const contenido = "Producto,Descripcion,Cantidad,Unidad,Peso estimado kg,Vida util,Tipo de producto,Procedencia\nArroz,Arroz blanco bolsa 1 kg,10,unidad,10,2026-12-31,No perecible,Nacional\n";
+    const url = URL.createObjectURL(new Blob([contenido], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "plantilla-productos.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleConfirmDelete = () => {
     if (!confirmDelete) return;
@@ -407,10 +514,11 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         createdAt: new Date().toISOString(),
       };
 
-      intencionStore.add(nueva);
+      const guardada = await saveIntencion(nueva);
+      intencionStore.add(guardada);
 
       showToast(
-        "¡Intención guardada exitosamente en el sistema local!",
+        "¡Intención enviada y guardada exitosamente!",
         "success"
       );
 
@@ -550,6 +658,14 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                   </option>
                 ))}
               </Select>
+              <Input
+                label="CantidadPorKilos"
+                required
+                value={contacto}
+                onChange={(e) => setContacto(e.target.value)}
+                placeholder="Cantidad Por Kilos"
+                error={validationErrors.CantidadPorKilos}
+              />
             </div>
           </section>
         )}
@@ -561,14 +677,39 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 <Package className="h-5 w-5 text-[#5cb89a]" />
                 Productos
               </h2>
-              <Button
-                variant="primary"
-                onClick={agregarProducto}
-                leftIcon={<span className="text-lg">+</span>}
-              >
-                Agregar producto
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={descargarPlantillaProductos}
+                  leftIcon={<Download className="h-4 w-4" />}
+                >
+                  Descargar plantilla CSV
+                </Button>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#5cb89a] bg-white px-4 py-2 text-sm font-medium text-[#32876d] hover:bg-[#5cb89a]/10">
+                  <Upload className="h-4 w-4" />
+                  Cargar listado CSV
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="sr-only"
+                    onChange={(event) => {
+                      void handleImportarProductos(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+                <Button
+                  variant="primary"
+                  onClick={agregarProducto}
+                  leftIcon={<span className="text-lg">+</span>}
+                >
+                  Agregar producto
+                </Button>
+              </div>
             </div>
+            <p className="mb-5 text-sm text-gray-500">
+              Carga un CSV con las columnas Producto, Descripcion, Cantidad, Unidad, Peso estimado kg, Vida util, Tipo de producto y Procedencia. Los productos importados se agregan al listado.
+            </p>
 
             <div className="space-y-6">
               {productosForm.map((p, idx) => (

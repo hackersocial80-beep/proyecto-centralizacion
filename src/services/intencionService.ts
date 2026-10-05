@@ -1,9 +1,10 @@
 import { INITIAL_INTENCIONES, MOCK_ORGANIZACIONES } from "./mockData";
 import type { Intencion } from "../types/intencion";
 import axios from "axios";
+import { getToken } from "./authService";
 
 const STORAGE_KEY = "mock_intenciones";
-const API_BASE_URL = "http://zerobap-pruebas.bap.net.pe/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://zerobap-pruebas.bap.net.pe/api";
 
 function getStoredIntenciones(): Intencion[] {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -22,135 +23,151 @@ function setStoredIntenciones(data: Intencion[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-export interface IntencionRequest {
-  donante: string;
-  contacto: string;
-  fechaIntencion: string;
-  canal: string;
-  responsable: string;
-  tipoIntencion: string;
-  productos: any[];
+type IntencionApiData = Intencion & {
   motivoDonacion?: string;
-  compromisoIdoneidad?: string;
+  compromisoIdoneidad?: string[] | string;
   condicionAlmacenamiento?: string;
   fechaEstimadaEntrega?: string;
   descripcionGeneralDonacion?: string;
-  incluyeProductosSensibles?: boolean;
   recomendacionesConsumo?: string;
   condicionProducto?: string;
   declaracionProducto?: boolean;
-  documentos: any[];
-  fotos: any[];
-}
+  incluyeProductosSensibles?: string | boolean;
+};
 
-export async function saveIntencion(data: IntencionRequest) {
-  // 1. Mapping to API Format (English)
-  // Note: In a real scenario, IDs would come from catalog selectors.
-  // Here we map the values. For IDs, we use the string value or a mock mapping.
+const DAY_OF_WEEK: Record<string, number> = {
+  Lunes: 1,
+  Martes: 2,
+  Miércoles: 3,
+  Jueves: 4,
+  Viernes: 5,
+  Sábado: 6,
+  Domingo: 7,
+};
+
+const numberOrNull = (value: string) => {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+export async function saveIntencion(data: IntencionApiData): Promise<Intencion> {
+  const token = getToken();
+  const quality = data as IntencionApiData;
+  const logistics = data.logistica;
+  const commitments = Array.isArray(quality.compromisoIdoneidad)
+    ? quality.compromisoIdoneidad
+    : quality.compromisoIdoneidad ? [quality.compromisoIdoneidad] : [];
+
+  // Convertimos el modelo del formulario al contrato POST /api/Intents.
   const apiPayload = {
     statusCode: "1",
+    supplierId: import.meta.env.VITE_DEFAULT_SUPPLIER_ID || "SUP-001",
     supplierName: data.donante,
-    supplierId: "SUP-001", // Mock ID: should come from supplier selector
-    contacto: data.contacto,
+    contacto: data.contacto || null,
     fecha: data.fechaIntencion,
-    channelId: data.canal, // Mapping: "Web" -> "WEB", etc.
+    channelId: data.canal,
     responsable: data.responsable,
     intentTypeId: data.tipoIntencion,
-    donationReasonId: data.motivoDonacion || "1",
-    suitabilityId: data.compromisoIdoneidad || "1",
-    storageConditionId: data.condicionAlmacenamiento || "1",
-    estimatedDeliveryDate: data.fechaEstimadaEntrega || "",
-    productConditionId: data.condicionProducto || "1",
-    donationDescription: data.descripcionGeneralDonacion || "",
-    consumptionRecommendation: data.recomendacionesConsumo || "",
-    productDeclaration: data.declaracionProducto || true,
+    donationReasonId: quality.motivoDonacion || "",
+    suitabilityId: commitments.join(","),
+    storageConditionId: quality.condicionAlmacenamiento || "",
+    estimatedDeliveryDate: quality.fechaEstimadaEntrega || "",
+    productConditionId: quality.condicionProducto || "",
+    donationDescription: quality.descripcionGeneralDonacion || "",
+    consumptionRecommendation: quality.recomendacionesConsumo || "",
+    productDeclaration: quality.declaracionProducto ?? false,
     qualityUserAuthorization: null,
     qualityAuthorizationDate: null,
     logisticUserAuthorization: null,
     logisticAuthorizationDate: null,
     socialUserAuthorization: null,
     socialAuthorizationDate: null,
-    products: data.productos.map((p: any) => ({
+    products: data.productos.map((product) => ({
       donationIntentId: null,
-      productName: p.producto,
-      description: p.descripcion,
-      offeredQuantity: p.cantidad,
-      realQuantity: p.cantidad,
-      unitCode: p.unidad,
-      estimatedWeight: p.pesoEstimadoKg,
-      expirationDate: p.vidaUtil,
-      productTypeCode: p.tipoProducto,
-      originCode: p.procedencia,
+      productName: product.producto,
+      description: product.descripcion || "",
+      offeredQuantity: product.cantidad,
+      realQuantity: product.cantidad,
+      unitCode: product.unidad,
+      estimatedWeight: product.pesoEstimadoKg,
+      expirationDate: product.vidaUtil || "",
+      productTypeCode: product.tipoProducto,
+      originCode: product.procedencia,
     })),
     infoLogistic: {
-      placeTypeId: data.productos[0]?.tipoLugar || "1",
-      placeName: data.productos[0]?.lugar || "",
-      contactName: data.productos[0]?.contactoPlanta || "",
-      direccion: data.productos[0]?.direccion || "",
-      referencia: data.productos[0]?.referencia || null,
-      districtCode: data.productos[0]?.distrito || "",
-      provinceCode: data.productos[0]?.provincia || "",
-      departmentCode: data.productos[0]?.departamento || "",
-      postalCode: data.productos[0]?.codigoPostal || "",
-      latitude: parseFloat(data.productos[0]?.latitud || "0"),
-      longitude: parseFloat(data.productos[0]?.longitud || "0"),
-      accesTypeId: data.productos[0]?.tipoAcceso || "1",
-      requiresAuthorization: data.productos[0]?.requiereAutorizacion === "Si",
-      anticipationTimeId: data.productos[0]?.anticipacion || "1",
-      authorizationContact: data.productos[0]?.contactoAutorizacion || null,
-      contactNumber: data.productos[0]?.numeroContacto || null,
-      starDate: data.productos[0]?.fechaDesde || "",
-      endDate: data.productos[0]?.fechaHasta || "",
-      startTime: data.productos[0]?.horarioInicio || "",
-      endTime: data.productos[0]?.horarioFinal || "",
-      estimatedLoadingMinutes: parseInt(data.productos[0]?.tiempoEstimadoCarga || "0"),
-      permitedHours: data.productos[0]?.horarioDisponible || "",
-      donationPickupDays: (data.productos[0]?.diasAtencion || []).map((day: string) => ({
-        dayOfWeek: 1, // Mock mapping for days
+      placeTypeId: logistics.tipoLugar,
+      placeName: logistics.lugar,
+      contactName: logistics.contactoPlanta,
+      direccion: logistics.direccion,
+      referencia: logistics.referencia || null,
+      districtCode: logistics.distrito,
+      provinceCode: logistics.provincia,
+      departmentCode: logistics.departamento,
+      postalCode: logistics.codigoPostal,
+      latitude: numberOrNull(logistics.latitud),
+      longitude: numberOrNull(logistics.longitud),
+      accesTypeId: logistics.tipoAcceso,
+      requiresAuthorization: logistics.requiereAutorizacion === "Si",
+      anticipationTimeId: logistics.anticipacion,
+      authorizationContact: logistics.contactoAutorizacion || null,
+      contactNumber: logistics.numeroContacto || null,
+      starDate: logistics.fechaDesde || "",
+      endDate: logistics.fechaHasta || "",
+      startTime: logistics.horarioInicio || "",
+      endTime: logistics.horarioFinal || "",
+      estimatedLoadingMinutes: Number(logistics.tiempoEstimadoCarga) || 0,
+      permitedHours: logistics.horarioDisponible || "",
+      donationPickupDays: logistics.diasAtencion.map((day) => ({
+        dayOfWeek: DAY_OF_WEEK[day],
       })),
-      donationPickupRequeriments: (data.productos[0]?.requisitosIngreso || []).map((req: string) => ({
-        requirementId: 1, // Mock mapping for requirements
-      })),
+      donationPickupRequeriments: logistics.requisitosIngreso
+        .map((requirement) => Number(requirement))
+        .filter(Number.isFinite)
+        .map((requirementId) => ({ requirementId })),
     },
   };
 
   try {
-    // 2. API Call
-    const response = await axios.post(`${API_BASE_URL}/Intents`, apiPayload);
+    const response = await axios.post(`${API_BASE_URL}/Intents`, apiPayload, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      withCredentials: true,
+    });
+    const result = response.data?.data ?? response.data;
+    if (response.data?.success === false) {
+      throw new Error(response.data.message || "La API rechazó la intención.");
+    }
 
-    // 3. Persistence in Mock Store for local visibility
     const current = getStoredIntenciones();
-    const newIntencion: Intencion = {
-      id: response.data.id || crypto.randomUUID(),
-      codigo: response.data.codigo || `INT-2026-${(current.length + 1).toString().padStart(4, "0")}`,
-      donante: data.donante,
-      contacto: data.contacto,
-      fechaIntencion: data.fechaIntencion,
-      canal: data.canal as any,
-      responsable: data.responsable,
-      tipoIntencion: data.tipoIntencion as any,
+    const now = new Date().toISOString();
+    const saved = {
+      ...data,
+      id: result?.id ?? result?.intentId ?? data.id ?? crypto.randomUUID(),
+      codigo: result?.codigo ?? result?.code ?? data.codigo,
       estado: "Capturada",
-      productos: data.productos,
-      motivoDonacion: data.motivoDonacion || "Excedente de produccion",
-      compromisoIdoneidad: data.compromisoIdoneidad || undefined,
-      condicionAlmacenamiento: data.condicionAlmacenamiento || undefined,
-      fechaEstimadaEntrega: data.fechaEstimadaEntrega || undefined,
-      descripcionGeneralDonacion: data.descripcionGeneralDonacion || undefined,
-      incluyeProductosSensibles: data.incluyeProductosSensibles || undefined,
-      recomendacionesConsumo: data.recomendacionesConsumo || undefined,
-      condicionProducto: data.condicionProducto || undefined,
-      declaracionProducto: data.declaracionProducto || undefined,
-      documentos: data.documentos,
-      fotos: data.fotos,
-      createdAt: new Date().toISOString(),
-    };
+      createdAt: now,
+      calidad: {
+        motivoDonacion: quality.motivoDonacion,
+        compromisoIdoneidad: commitments,
+        condicionAlmacenamiento: quality.condicionAlmacenamiento,
+        fechaEstimadaEntrega: quality.fechaEstimadaEntrega,
+        descripcionGeneralDonacion: quality.descripcionGeneralDonacion,
+        incluyeProductosSensibles: quality.incluyeProductosSensibles,
+        recomendacionesConsumo: quality.recomendacionesConsumo,
+        condicionProducto: quality.condicionProducto,
+        declaracionProducto: quality.declaracionProducto ?? false,
+      },
+    } as unknown as Intencion;
 
-    const updated = [newIntencion, ...current];
-    setStoredIntenciones(updated);
-    return newIntencion;
-  } catch (error: any) {
-    console.error("API Error while saving intention:", error.response?.data || error.message);
-    throw new Error(error.response?.data?.message || "Error al guardar la intención en el servidor");
+    setStoredIntenciones([saved, ...current]);
+    return saved;
+  } catch (error) {
+    const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+    console.error("API Error while saving intention:", axiosError.response?.data || axiosError.message);
+    throw new Error(axiosError.response?.data?.message || axiosError.message || "Error al guardar la intención en el servidor");
   }
 }
 

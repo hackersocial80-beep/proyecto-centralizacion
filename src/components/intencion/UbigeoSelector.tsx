@@ -50,13 +50,11 @@ interface ProductoForm {
 }
 
 export default function UbigeoSelector({
-  productoId,
   initialValues,
   onChange
 }: {
-  productoId: string;
   initialValues: Partial<ProductoForm>;
-  onChange: (id: string, field: string, value: any) => void;
+  onChange: (field: "departamento" | "provincia" | "distrito", value: string) => void;
 }) {
   const [departments, setDepartments] = useState<UbigeoItem[]>([]);
   const [provinces, setProvinces] = useState<UbigeoItem[]>([]);
@@ -116,14 +114,17 @@ export default function UbigeoSelector({
   }, []);
 
   const handleDeptChange = (val: string) => {
-    onChange(productoId, "departamento", val);
+    onChange("departamento", val);
+    onChange("provincia", "");
+    onChange("distrito", "");
     setProvinces([]);
     setDistricts([]);
     if (val) loadProvinces(val);
   };
 
   const handleProvChange = (val: string) => {
-    onChange(productoId, "provincia", val);
+    onChange("provincia", val);
+    onChange("distrito", "");
     setDistricts([]);
     if (val) loadDistricts(val);
   };
@@ -161,7 +162,7 @@ export default function UbigeoSelector({
       <Select
         label="Distrito"
         value={initialValues.distrito || ""}
-        onChange={(e) => onChange(productoId, "distrito", e.target.value)}
+        onChange={(e) => onChange("distrito", e.target.value)}
         disabled={!initialValues.provincia || isLoading.dist}
       >
         <option value="">Seleccionar Distrito</option>
