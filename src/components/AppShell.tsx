@@ -5,6 +5,10 @@ import {
   LayoutDashboard,
   LogOut,
   Route,
+  ChevronDown,
+  ChevronRight,
+  ShoppingCart,
+  ReceiptText,
 } from "lucide-react";
 import logo from "../assets/logo.png";
 import type { LoginUser } from "../services/authService";
@@ -34,6 +38,16 @@ export default function AppShell({
 }: Props) {
   const [user, setUser] = useState<LoginUser | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [donacionesOpen, setDonacionesOpen] = useState(
+    moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento"
+  );
+  const [comprasOpen, setComprasOpen] = useState(false);
+
+  useEffect(() => {
+    if (moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento") {
+      setDonacionesOpen(true);
+    }
+  }, [moduloActivo]);
 
   useEffect(() => {
     try {
@@ -77,24 +91,59 @@ export default function AppShell({
             active={moduloActivo === "menu"}
             onClick={onInicio}
           />
-          <SidebarItem
-            icon={<ClipboardList className="h-4 w-4" />}
-            label="Intenciones"
-            active={moduloActivo === "intencion"}
-            onClick={onIntencion}
-          />
-          <SidebarItem
-            icon={<Gift className="h-4 w-4" />}
-            label="Donaciones"
-            active={moduloActivo === "donacion"}
-            onClick={onDonacion}
-          />
-          <SidebarItem
-            icon={<Route className="h-4 w-4" />}
-            label="Seguimiento"
-            active={moduloActivo === "seguimiento"}
-            onClick={onSeguimiento}
-          />
+          <button
+            type="button"
+            aria-expanded={donacionesOpen}
+            onClick={() => setDonacionesOpen((open) => !open)}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors ${
+              moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento"
+                ? "bg-[#5cb89a]/10 text-[#32876d]"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            <Gift className="h-4 w-4 text-[#5cb89a]" />
+            <span className="flex-1">Donaciones</span>
+            {donacionesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          {donacionesOpen && (
+            <div className="ml-4 space-y-1 border-l border-gray-200 pl-3">
+              <SidebarSubItem
+                icon={<ClipboardList className="h-4 w-4" />}
+                label="Intención de donación"
+                active={moduloActivo === "intencion"}
+                onClick={onIntencion}
+              />
+              <SidebarSubItem
+                icon={<Gift className="h-4 w-4" />}
+                label="Donaciones"
+                active={moduloActivo === "donacion"}
+                onClick={onDonacion}
+              />
+              <SidebarSubItem
+                icon={<Route className="h-4 w-4" />}
+                label="Seguimiento"
+                active={moduloActivo === "seguimiento"}
+                onClick={onSeguimiento}
+              />
+            </div>
+          )}
+
+          <button
+            type="button"
+            aria-expanded={comprasOpen}
+            onClick={() => setComprasOpen((open) => !open)}
+            className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+          >
+            <ShoppingCart className="h-4 w-4 text-gray-500" />
+            <span className="flex-1">Compras y facturación</span>
+            {comprasOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          {comprasOpen && (
+            <div className="ml-4 space-y-1 border-l border-gray-200 pl-3">
+              <SidebarSubItem icon={<ShoppingCart className="h-4 w-4" />} label="Compras" disabled />
+              <SidebarSubItem icon={<ReceiptText className="h-4 w-4" />} label="Facturación" disabled />
+            </div>
+          )}
         </nav>
 
         <div className="border-t border-gray-200 p-4">
@@ -128,6 +177,39 @@ export default function AppShell({
 
       <main className="flex-1 overflow-x-hidden">{children}</main>
     </div>
+  );
+}
+
+function SidebarSubItem({
+  icon,
+  label,
+  active = false,
+  onClick,
+  disabled = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+        disabled
+          ? "cursor-not-allowed text-gray-400"
+          : active
+            ? "bg-[#5cb89a]/10 font-semibold text-[#32876d]"
+            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+      }`}
+    >
+      <span className={active ? "text-[#5cb89a]" : "text-gray-400"}>{icon}</span>
+      {label}
+      {disabled && <span className="ml-auto text-[10px] uppercase tracking-wide">Próximamente</span>}
+    </button>
   );
 }
 

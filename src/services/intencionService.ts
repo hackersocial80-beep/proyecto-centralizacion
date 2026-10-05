@@ -165,9 +165,30 @@ export async function saveIntencion(data: IntencionApiData): Promise<Intencion> 
     setStoredIntenciones([saved, ...current]);
     return saved;
   } catch (error) {
-    const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
-    console.error("API Error while saving intention:", axiosError.response?.data || axiosError.message);
-    throw new Error(axiosError.response?.data?.message || axiosError.message || "Error al guardar la intención en el servidor");
+    const axiosError = error as {
+      response?: { status?: number; data?: { message?: string; title?: string; errors?: unknown } | string };
+      message?: string;
+    };
+    const responseData = axiosError.response?.data;
+    const validationDetails = typeof responseData === "object" && responseData?.errors
+      ? Object.entries(responseData.errors as Record<string, unknown>)
+          .map(([field, messages]) => {
+            const detail = Array.isArray(messages) ? messages.join(", ") : String(messages);
+            return `${field}: ${detail}`;
+          })
+          .join("; ")
+      : undefined;
+    const responseMessage = typeof responseData === "string"
+      ? responseData
+      : validationDetails || responseData?.message || responseData?.title;
+    const message = responseMessage ||
+      (axiosError.response?.status
+        ? `Error ${axiosError.response.status} al guardar la intención.`
+        : axiosError.message) ||
+      "Error al guardar la intención en el servidor";
+
+    console.error("API Error while saving intention:", responseData || axiosError.message);
+    throw new Error(message);
   }
 }
 

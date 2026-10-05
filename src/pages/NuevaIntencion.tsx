@@ -96,6 +96,9 @@ interface LogisticaForm {
   observacionesAcceso: string;
 }
 
+// Cambiar a false para volver a mostrar el tab de productos.
+const HIDE_PRODUCTS_TAB = true;
+
 const emptyProducto = (): ProductoForm => ({
   id: crypto.randomUUID(),
   producto: "",
@@ -181,6 +184,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   const [canal, setCanal] = useState<string>("WhatsApp");
   const [responsable, setResponsable] = useState("");
   const [tipoIntencion, setTipoIntencion] = useState<string>("Donacion");
+  const [CantidadPorKilos, setCantidadPorKilos] = useState("");
 
   const [productosForm, setProductosForm] = useState<ProductoForm[]>([
     emptyProducto(),
@@ -393,10 +397,12 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     if (!contacto.trim()) errors.contacto = "El contacto es obligatorio";
     if (!responsable.trim()) errors.responsable = "El responsable es obligatorio";
 
-    productosForm.forEach((p, idx) => {
-      if (!p.producto.trim()) errors[`prod_${idx}_nombre`] = "El nombre del producto es obligatorio";
-      if (Number(p.cantidad) <= 0) errors[`prod_${idx}_cant`] = "La cantidad debe ser mayor a 0";
-    });
+    if (!HIDE_PRODUCTS_TAB) {
+      productosForm.forEach((p, idx) => {
+        if (!p.producto.trim()) errors[`prod_${idx}_nombre`] = "El nombre del producto es obligatorio";
+        if (Number(p.cantidad) <= 0) errors[`prod_${idx}_cant`] = "La cantidad debe ser mayor a 0";
+      });
+    }
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -404,6 +410,9 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // Guardar solo desde el último tab del formulario.
+    if (activeTab !== "logistica") return;
 
     if (!validateForm()) {
       firstErrorRef.current?.scrollIntoView({
@@ -536,7 +545,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
   const tabs = [
     { id: "general", label: "Datos Generales", icon: FileText },
-    { id: "productos", label: "Productos", icon: Package },
+    ...(!HIDE_PRODUCTS_TAB ? [{ id: "productos", label: "Productos", icon: Package }] : []),
     { id: "calidad", label: "Calidad", icon: CheckCircle },
     { id: "logistica", label: "Logística", icon: Truck },
   ];
@@ -659,10 +668,10 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 ))}
               </Select>
               <Input
-                label="CantidadPorKilos"
+                label="Cantidad Por Kilos"
                 required
-                value={contacto}
-                onChange={(e) => setContacto(e.target.value)}
+                value={CantidadPorKilos}
+                onChange={(e) => setCantidadPorKilos(e.target.value)}
                 placeholder="Cantidad Por Kilos"
                 error={validationErrors.CantidadPorKilos}
               />
@@ -1442,14 +1451,16 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
           <Button variant="secondary" onClick={onCancelar}>
             Cancelar
           </Button>
-          <Button
-            variant="primary"
-            type="submit"
-            isLoading={isSubmitting}
-            leftIcon={<Save className="h-4 w-4" />}
-          >
-            Guardar intención
-          </Button>
+          {activeTab === "logistica" && (
+            <Button
+              variant="primary"
+              type="submit"
+              isLoading={isSubmitting}
+              leftIcon={<Save className="h-4 w-4" />}
+            >
+              Guardar intención
+            </Button>
+          )}
         </div>
       </form>
 
