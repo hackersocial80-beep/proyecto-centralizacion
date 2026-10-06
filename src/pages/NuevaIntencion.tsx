@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent, useRef } from "react";
-import { Save, Trash2, Loader2, FileText, Package, CheckCircle, Truck, Upload, Download } from "lucide-react";
+import { Save, Trash2, Loader2, FileText, Package, CheckCircle, Truck, Upload, Download, MapPin } from "lucide-react";
 import ProductosGrid from "../components/intencion/ProductosGrid";
 import UbigeoSelector from "../components/intencion/UbigeoSelector";
 import {
@@ -96,6 +96,16 @@ interface LogisticaForm {
   observacionesAcceso: string;
 }
 
+const REQUISITOS_INGRESO = [
+  { id: "1", label: "DNI vigente" },
+  { id: "2", label: "Carnet de sanidad" },
+  { id: "3", label: "Autorización del donante" },
+  { id: "4", label: "Uso obligatorio de EPP" },
+  { id: "5", label: "Seguro SCTR" },
+  { id: "6", label: "Inducción de seguridad" },
+  { id: "7", label: "Vehículo con sello de fumigación" },
+  { id: "8", label: "Otros requisitos" },
+];
 // Cambiar a false para volver a mostrar el tab de productos.
 const HIDE_PRODUCTS_TAB = true;
 
@@ -172,8 +182,8 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
   const firstErrorRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    catalogStore.loadCatalogs();
+  useEffect(() => {
+    catalogStore.loadCatalogs();
   }, []);
 
   const [donante, setDonante] = useState("");
@@ -181,7 +191,12 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   const [fechaIntencion, setFechaIntencion] = useState(
     new Date().toISOString().slice(0, 10)
   );
-  const [canal, setCanal] = useState<string>("WhatsApp");
+  const [canal, setCanal] = useState<string>("");
+  useEffect(() => {
+    if (!canal && catalogs.canales.length > 0) {
+      setCanal(catalogs.canales[0].id);
+    }
+  }, [canal, catalogs.canales]);
   const [responsable, setResponsable] = useState("");
   const [tipoIntencion, setTipoIntencion] = useState<string>("Donacion");
   const [CantidadPorKilos, setCantidadPorKilos] = useState("");
@@ -196,7 +211,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     condicionAlmacenamiento: "",
     fechaEstimadaEntrega: "",
     descripcionGeneralDonacion: "",
-    incluyeProductosSensibles: "",
+    incluyeProductosSensibles: "No",
     recomendacionesConsumo: "",
     condicionProducto: "",
     declaracionProducto: false,
@@ -396,6 +411,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     if (!donante.trim()) errors.donante = "El donante es obligatorio";
     if (!contacto.trim()) errors.contacto = "El contacto es obligatorio";
     if (!responsable.trim()) errors.responsable = "El responsable es obligatorio";
+    if (!canal) errors.canal = "Selecciona un canal";
 
     if (!HIDE_PRODUCTS_TAB) {
       productosForm.forEach((p, idx) => {
@@ -544,14 +560,24 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   };
 
   const tabs = [
-    { id: "general", label: "Datos Generales", icon: FileText },
+    { id: "general", label: "Datos Generales y Calidad", icon: FileText },
     ...(!HIDE_PRODUCTS_TAB ? [{ id: "productos", label: "Productos", icon: Package }] : []),
-    { id: "calidad", label: "Calidad", icon: CheckCircle },
     { id: "logistica", label: "Logística", icon: Truck },
   ];
 
   const activeTabIndex = tabs.findIndex((t) => t.id === activeTab) + 1;
-
+  const latitude = Number(logisticaForm.latitud);
+  const longitude = Number(logisticaForm.longitud);
+  const hasValidCoordinates =
+    logisticaForm.latitud.trim() !== "" &&
+    logisticaForm.longitud.trim() !== "" &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 && latitude <= 90 &&
+    longitude >= -180 && longitude <= 180;
+  const mapEmbedUrl = hasValidCoordinates
+    ? `https://maps.google.com/maps?q=${latitude},${longitude}&z=15&output=embed`
+    : null;
   return (
     <div className="px-6 py-6 lg:px-10">
       <div className="mb-6 flex items-center justify-between">
@@ -639,12 +665,15 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
               />
               <Select
                 label="Canal"
+                required
                 value={canal}
                 onChange={(e) => setCanal(e.target.value)}
+                error={validationErrors.canal}
               >
-                {catalogs.canales.map((item: any) => (
-                  <option key={item.id || item} value={item.id || item}>
-                    {item.name || item}
+                <option value="">Seleccionar canal</option>
+                {catalogs.canales.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
                   </option>
                 ))}
               </Select>
@@ -834,7 +863,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
           </section>
         )}
 
-        {activeTab === "calidad" && (
+        {activeTab === "general" && (
           <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
             <h2 className="mb-6 text-lg font-bold text-gray-900 flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-[#5cb89a]" />
@@ -901,13 +930,13 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 </div>
 
                 <Select
-                  value={calidadForm.incluyeProductosSensibles ? "true" : "false"}
+                  value={calidadForm.incluyeProductosSensibles || "No"}
                   onChange={(e) =>
                     setCalidadField("incluyeProductosSensibles", e.target.value as ProductoSensible)
                   }
                 >
-                  <option value="false">No</option>
-                  <option value="true">Sí</option>
+                  <option value="No">No</option>
+                  <option value="Si">Sí</option>
                 </Select>
               </div>
               <div className="col-span-2">
@@ -1206,7 +1235,24 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 />
 
               </div>
+              {mapEmbedUrl ? (
+                <div className="mt-5 overflow-hidden rounded-xl border border-gray-200">
+                  <iframe
+                    title="Mapa de ubicación del lugar de recojo"
+                    src={mapEmbedUrl}
+                    className="h-72 w-full"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                </div>
+              ) : (
+                <div className="mt-5 flex min-h-32 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 text-center text-sm text-gray-500">
+                  Ingresa una latitud y longitud válidas para mostrar el mapa.
+                </div>
+              )}
             </section>
+
+
 
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-900">
@@ -1215,101 +1261,31 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
               </h2>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-
                 <Select
                   label="Tipo de acceso"
                   value={logisticaForm.tipoAcceso}
-                  onChange={(e) =>
-                    setLogisticaField(
-                      "tipoAcceso",
-                      e.target.value as TipoAcceso
-                    )
-                  }
+                  onChange={(event) => setLogisticaField("tipoAcceso", event.target.value as TipoAcceso)}
                 >
                   {catalogs.tipoAcceso.map((item: any) => (
-                    <option key={item.id || item} value={item.id || item}>
-                      {item.name || item}
-                    </option>
+                    <option key={item.id || item} value={item.id || item}>{item.name || item}</option>
                   ))}
                 </Select>
 
                 <FormField label="Horario de atención">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      value={logisticaForm.horarioInicio}
-                      onChange={(e) =>
-                        setLogisticaField(
-                          "horarioInicio",
-                          e.target.value
-                        )
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                    />
-
+                    <input type="time" value={logisticaForm.horarioInicio} onChange={(event) => setLogisticaField("horarioInicio", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
                     <span>a</span>
-
-                    <input
-                      type="time"
-                      value={logisticaForm.horarioFinal}
-                      onChange={(e) =>
-                        setLogisticaField(
-                          "horarioFinal",
-                          e.target.value
-                        )
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                    />
+                    <input type="time" value={logisticaForm.horarioFinal} onChange={(event) => setLogisticaField("horarioFinal", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2" />
                   </div>
                 </FormField>
 
-                <FormField
-                  label="Días de atención"
-                  className="md:col-span-2"
-                >
+                <FormField label="Días de atención" className="md:col-span-2">
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      "Lunes",
-                      "Martes",
-                      "Miércoles",
-                      "Jueves",
-                      "Viernes",
-                      "Sábado",
-                      "Domingo",
-                    ].map((dia) => {
-                      const seleccionado =
-                        logisticaForm.diasAtencion.includes(
-                          dia as DiasAtencion
-                        );
-
+                    {(["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] as DiasAtencion[]).map((dia) => {
+                      const seleccionado = logisticaForm.diasAtencion.includes(dia);
                       return (
-                        <label
-                          key={dia}
-                          className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${seleccionado
-                            ? "border-[#5cb89a] bg-[#5cb89a]/10"
-                            : "border-gray-300 bg-white"
-                            }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={seleccionado}
-                            onChange={(e) => {
-                              const nuevos = e.target.checked
-                                ? [
-                                  ...logisticaForm.diasAtencion,
-                                  dia as DiasAtencion,
-                                ]
-                                : logisticaForm.diasAtencion.filter(
-                                  (d) => d !== dia
-                                );
-
-                              setLogisticaField(
-                                "diasAtencion",
-                                nuevos
-                              );
-                            }}
-                          />
-
+                        <label key={dia} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${seleccionado ? "border-[#5cb89a] bg-[#5cb89a]/10" : "border-gray-300 bg-white"}`}>
+                          <input type="checkbox" checked={seleccionado} onChange={(event) => setLogisticaField("diasAtencion", event.target.checked ? [...logisticaForm.diasAtencion, dia] : logisticaForm.diasAtencion.filter((item) => item !== dia))} />
                           {dia}
                         </label>
                       );
@@ -1319,78 +1295,46 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
                 <FormField label="¿Requiere autorización previa?">
                   <div className="flex gap-6">
-                    <label>
-                      <input
-                        type="radio"
-                        checked={logisticaForm.requiereAutorizacion === "Si"}
-                        onChange={() =>
-                          setLogisticaField(
-                            "requiereAutorizacion",
-                            "Si"
-                          )
-                        }
-                      />
-                      <span className="ml-2">Sí</span>
-                    </label>
-
-                    <label>
-                      <input
-                        type="radio"
-                        checked={logisticaForm.requiereAutorizacion === "No"}
-                        onChange={() =>
-                          setLogisticaField(
-                            "requiereAutorizacion",
-                            "No"
-                          )
-                        }
-                      />
-                      <span className="ml-2">No</span>
-                    </label>
+                    <label><input type="radio" checked={logisticaForm.requiereAutorizacion === "Si"} onChange={() => setLogisticaField("requiereAutorizacion", "Si")} /><span className="ml-2">Sí</span></label>
+                    <label><input type="radio" checked={logisticaForm.requiereAutorizacion === "No"} onChange={() => setLogisticaField("requiereAutorizacion", "No")} /><span className="ml-2">No</span></label>
                   </div>
                 </FormField>
 
-                <Select
-                  label="Tiempo de anticipación requerida"
-                  value={logisticaForm.anticipacion}
-                  onChange={(e) =>
-                    setLogisticaField(
-                      "anticipacion",
-                      e.target.value as Anticipacion
-                    )
-                  }
-                >
+                <Select label="Tiempo de anticipación requerida" value={logisticaForm.anticipacion} onChange={(event) => setLogisticaField("anticipacion", event.target.value as Anticipacion)}>
                   {catalogs.anticipacion.map((item: any) => (
-                    <option key={item.id || item} value={item.id || item}>
-                      {item.name || item}
-                    </option>
+                    <option key={item.id || item} value={item.id || item}>{item.name || item}</option>
                   ))}
                 </Select>
+                <Input label="Contacto de autorización" value={logisticaForm.contactoAutorizacion} onChange={(event) => setLogisticaField("contactoAutorizacion", event.target.value)} />
+                <Input label="Número de contacto" value={logisticaForm.numeroContacto} onChange={(event) => setLogisticaField("numeroContacto", event.target.value)} />
+              </div>
 
-                <Input
-                  label="Contacto de autorización"
-                  value={logisticaForm.contactoAutorizacion}
-                  onChange={(e) =>
-                    setLogisticaField(
-                      "contactoAutorizacion",
-                      e.target.value
-                    )
-                  }
-                />
-
-                <Input
-                  label="Número de contacto"
-                  value={logisticaForm.numeroContacto}
-                  onChange={(e) =>
-                    setLogisticaField(
-                      "numeroContacto",
-                      e.target.value
-                    )
-                  }
-                />
-
+              <div className="mt-7 border-t border-gray-200 pt-6">
+                <div className="mb-5">
+                  <h3 className="flex items-center gap-2 text-base font-bold text-gray-900">
+                    <MapPin className="h-5 w-5 text-[#5cb89a]" />
+                    Requisitos para ingreso a planta
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">Selecciona todos los que apliquen.</p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {REQUISITOS_INGRESO.map((requisito) => {
+                    const seleccionado = logisticaForm.requisitosIngreso.includes(requisito.id);
+                    return (
+                      <label key={requisito.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition-colors ${seleccionado ? "border-[#5cb89a] bg-[#5cb89a]/10 text-gray-900" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}>
+                        <input type="checkbox" checked={seleccionado} onChange={(event) => setLogisticaField("requisitosIngreso", event.target.checked ? [...logisticaForm.requisitosIngreso, requisito.id] : logisticaForm.requisitosIngreso.filter((id) => id !== requisito.id))} className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]" />
+                        <span>{requisito.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {logisticaForm.requisitosIngreso.includes("8") && (
+                  <div className="mt-4 max-w-xl">
+                    <Input label="Detalle de otros requisitos" value={logisticaForm.observacionesAcceso} onChange={(event) => setLogisticaField("observacionesAcceso", event.target.value)} placeholder="Especifica los requisitos adicionales" />
+                  </div>
+                )}
               </div>
             </section>
-
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-900">
                 <Truck className="h-5 w-5 text-[#5cb89a]" />

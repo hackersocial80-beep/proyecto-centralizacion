@@ -4,7 +4,7 @@ import axios from "axios";
 import { getToken } from "./authService";
 
 const STORAGE_KEY = "mock_intenciones";
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://zerobap-pruebas.bap.net.pe/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 function getStoredIntenciones(): Intencion[] {
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -53,6 +53,17 @@ const numberOrNull = (value: string) => {
 
 export async function saveIntencion(data: IntencionApiData): Promise<Intencion> {
   const token = getToken();
+  const loggedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("authUser") || "null") as {
+        username?: string;
+        publicId?: string;
+      } | null;
+    } catch {
+      return null;
+    }
+  })();
+  const createdBy = loggedUser?.username || loggedUser?.publicId || data.responsable;
   const quality = data as IntencionApiData;
   const logistics = data.logistica;
   const commitments = Array.isArray(quality.compromisoIdoneidad)
@@ -69,6 +80,13 @@ export async function saveIntencion(data: IntencionApiData): Promise<Intencion> 
     channelId: data.canal,
     responsable: data.responsable,
     intentTypeId: data.tipoIntencion,
+    productSensibily:
+      quality.incluyeProductosSensibles === true ||
+      quality.incluyeProductosSensibles === "Si" ||
+      quality.incluyeProductosSensibles === "true"
+        ? "Si"
+        : "No",
+    createdBy,
     donationReasonId: quality.motivoDonacion || "",
     suitabilityId: commitments.join(","),
     storageConditionId: quality.condicionAlmacenamiento || "",

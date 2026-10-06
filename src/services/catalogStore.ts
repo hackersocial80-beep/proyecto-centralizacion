@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from "react";
 import { fetchCatalogs } from "./catalogService";
-import { loginUser } from "./authService";
 
 interface CatalogItem {
   id: string;
@@ -27,6 +26,20 @@ interface CatalogState {
   error: string | null;
 }
 
+const normalizeChannels = (items: any[] = []): CatalogItem[] =>
+  items.map((item) => {
+    if (typeof item === "string" || typeof item === "number") {
+      const value = String(item);
+      return { id: value, name: value };
+    }
+
+    const id = item.channelId ?? item.channelID ?? item.canalId ?? item.idCanal ?? item.id ?? item.code ?? item.channelCode ?? item.value;
+    const name = item.channelName ?? item.nombreCanal ?? item.name ?? item.canal ?? item.channel ?? item.label ?? item.description ?? item.descripcion;
+    return {
+      id: String(id ?? name ?? ""),
+      name: String(name ?? id ?? ""),
+    };
+  }).filter((item) => item.id !== "" && item.name !== "");
 const initialState: CatalogState = {
   canales: [],
   tiposIntencion: [],
@@ -70,21 +83,15 @@ export const catalogStore = {
 
     try {
       console.log("Iniciando carga de catálogos...");
-      // 1. Authenticate with the credentials from environment variables
-      await loginUser(
-        import.meta.env.VITE_AUTH_LOGIN,
-        import.meta.env.VITE_AUTH_PASSWORD
-      );
-      console.log("Autenticación exitosa");
-
-      // 2. Fetch the catalogs
+      // Reuse the session established by the login screen.
+      // Do not attempt a second login with optional build-time credentials.
       const data = await fetchCatalogs();
       console.log("Datos recibidos de la API:", data);
 
       // Mapping the API response to our state.
       state = {
         ...state,
-        canales: data.channels || [],
+        canales: normalizeChannels(data.channels || []),
         tiposIntencion: data.intentionTypes || [],
         tiposProducto: data.productTypes || [],
         procedencias: data.originType || [],
