@@ -9,7 +9,7 @@ export default defineConfig({
 
     proxy: {
       "/api": {
-        target: "https://zerobap.bap.net.pe",
+        target: "https://zerobap-pruebas.bap.net.pe",
         changeOrigin: true,
         secure: false,
       },

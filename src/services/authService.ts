@@ -1,6 +1,5 @@
 
-const apiUrl = import.meta.env.VITE_API_URL;
-const API_BASE_URL = apiUrl;
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export type LoginUser = {
   publicId: string;
@@ -89,7 +88,7 @@ export async function loginUser(
 
   // FALLBACK GLOBAL PARA CUALQUIER AMBIENTE DE BAP (PRUEBAS O PRODUCCIÓN)
   // Si el servidor responde éxito pero no envía token, es probable que use cookies.
-  if (!token && (API_BASE_URL.includes("bap.net.pe"))) {
+  if (!token && (API_BASE_URL.includes("bap.net.pe") || API_BASE_URL === "/api")) {
     console.warn("Token no encontrado en respuesta, usando FALLBACK para permitir flujo basado en cookies.");
     token = "BAP_SESSION_COOKIE_ACTIVE";
   }
