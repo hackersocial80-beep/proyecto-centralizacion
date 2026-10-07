@@ -142,6 +142,9 @@ const toProductoIntencion = (p: ProductoForm): ProductoIntencion => ({
 const normalizeHeader = (value: string) =>
   value.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
+const isImageFile = (file: File) =>
+  file.type.toLowerCase().startsWith("image/") || /\.(jpe?g|png|gif|webp|bmp|tiff?|heic|heif|svg)$/i.test(file.name);
+
 // CSV parser that supports quoted fields, commas/semicolons and escaped quotes.
 const parseCsv = (text: string): string[][] => {
   const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
@@ -428,8 +431,10 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
   const handleAddDocumentos = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
+    const imageFiles = files.filter(isImageFile);
+    const documentFiles = files.filter((file) => !isImageFile(file));
     const fileMap: Record<string, File> = {};
-    const nuevos: DocumentoAdjunto[] = files.map((file) => {
+    const nuevos: DocumentoAdjunto[] = documentFiles.map((file) => {
       const id = crypto.randomUUID();
       fileMap[id] = file;
       return {
@@ -440,9 +445,21 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         url: URL.createObjectURL(file),
       };
     });
+    const nuevasFotos: FotoAdjunta[] = imageFiles.map((file) => {
+      const id = crypto.randomUUID();
+      fileMap[id] = file;
+      return { id, nombre: file.name, url: URL.createObjectURL(file) };
+    });
 
     setAttachmentFiles((prev) => ({ ...prev, ...fileMap }));
-    setCalidadForm((prev) => ({ ...prev, documentos: [...prev.documentos, ...nuevos] }));
+    setCalidadForm((prev) => ({
+      ...prev,
+      documentos: [...prev.documentos, ...nuevos],
+      fotos: [...prev.fotos, ...nuevasFotos],
+    }));
+    if (imageFiles.length > 0) {
+      showToast("Las imágenes se agregaron como fotos y se enviarán en Photos.", "success");
+    }
     event.target.value = "";
   };
 
@@ -503,6 +520,24 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     setIsSubmitting(true);
 
     try {
+      const isImageDocument = (documento: DocumentoAdjunto) => {
+        const file = attachmentFiles[documento.id];
+        return file
+          ? isImageFile(file)
+          : documento.tipo.toLowerCase().startsWith("image/") || /\.(jpe?g|png|gif|webp|bmp|tiff?|heic|heif|svg)$/i.test(documento.nombre);
+      };
+      const imageDocuments = calidadForm.documentos.filter(isImageDocument);
+      const documentFiles = calidadForm.documentos
+        .filter((documento) => !isImageDocument(documento))
+        .map((documento) => attachmentFiles[documento.id])
+        .filter((file): file is File => Boolean(file));
+      const imageFiles = imageDocuments
+        .map((documento) => attachmentFiles[documento.id])
+        .filter((file): file is File => Boolean(file));
+      const photosToSave: FotoAdjunta[] = [
+        ...calidadForm.fotos,
+        ...imageDocuments.map(({ id, nombre, url }) => ({ id, nombre, url })),
+      ];
       const productosValidos: ProductoIntencion[] =
         productosForm
           .filter((p) => p.producto.trim() !== "")
@@ -566,9 +601,9 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         declaracionProducto:
           calidadForm.declaracionProducto,
 
-        documentos: calidadForm.documentos,
+        documentos: calidadForm.documentos.filter((documento) => !isImageDocument(documento)),
 
-        fotos: calidadForm.fotos,
+        fotos: photosToSave,
 
         // LOGÍSTICA - UNA SOLA
         logistica: {
@@ -599,12 +634,13 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
       };
 
       const guardada = await saveIntencion({ ...nueva, supplierId }, {
-        documents: calidadForm.documentos
-          .map((documento) => attachmentFiles[documento.id])
-          .filter((file): file is File => Boolean(file)),
-        photos: calidadForm.fotos
-          .map((foto) => attachmentFiles[foto.id])
-          .filter((file): file is File => Boolean(file)),
+        documents: documentFiles,
+        photos: [
+          ...calidadForm.fotos
+            .map((foto) => attachmentFiles[foto.id])
+            .filter((file): file is File => Boolean(file)),
+          ...imageFiles,
+        ],
       });
       intencionStore.add(guardada);
 
@@ -1201,18 +1237,13 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                   onChange={(e) => setLogisticaField("referencia", e.target.value)}
                   placeholder="Referencia"
                 />
-                <Input
-                  label="Código Postal"
-                  value={logisticaForm.codigoPostal}
-                  onChange={(e) => setLogisticaField("codigoPostal", e.target.value)}
-                  placeholder="Código Postal"
-                />
                 <div className="lg:col-span-4">
                   <UbigeoSelector
                     initialValues={{
                       departamento: logisticaForm.departamento,
                       provincia: logisticaForm.provincia,
-                      distrito: logisticaForm.distrito
+                      distrito: logisticaForm.distrito,
+                      codigoPostal: logisticaForm.codigoPostal
                     }}
                     onChange={(key, value) =>
                       setLogisticaField(

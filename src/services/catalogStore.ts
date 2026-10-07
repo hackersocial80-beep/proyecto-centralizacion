@@ -88,8 +88,8 @@ const normalizeAnticipationTimes = (items: any[] = []): CatalogItem[] =>
       const value = String(item);
       return { id: value, name: value };
     }
-    const id = item?.anticipationTimeId ?? item?.anticipationTimeID ?? item?.anticipationId ?? item?.idAnticipationTime ?? item?.id ?? item?.code ?? item?.value;
-    const name = item?.anticipationTimeName ?? item?.anticipationName ?? item?.timeName ?? item?.name ?? item?.description ?? item?.descripcion ?? item?.label ?? item?.anticipationTime;
+    const id = item?.leadTimeId ?? item?.leadTimeID ?? item?.idLeadTime ?? item?.anticipationTimeId ?? item?.anticipationTimeID ?? item?.anticipationId ?? item?.idAnticipationTime ?? item?.id ?? item?.code ?? item?.value;
+    const name = item?.leadTimeName ?? item?.leadTime ?? item?.anticipationTimeName ?? item?.anticipationName ?? item?.timeName ?? item?.name ?? item?.description ?? item?.descripcion ?? item?.label ?? item?.anticipationTime;
     return { id: String(id ?? ""), name: String(name ?? id ?? "") };
   }).filter((item) => item.id !== "" && item.name !== "");
 const initialState: CatalogState = {
@@ -161,7 +161,7 @@ export const catalogStore = {
         provincias: data.provincias || [],
         departamentos: data.departamentos || [],
         tipoAcceso: normalizeAccessTypes(data.accessTypes || data.accesTypes || []),
-        anticipacion: normalizeAnticipationTimes(data.anticipationTimes || data.anticipationTime || data.anticipacion || data.anticipation || []),
+        anticipacion: normalizeAnticipationTimes(data.leadTime || data.leadTimes || data.anticipationTimes || data.anticipationTime || data.anticipacion || data.anticipation || []),
         motivosDonacion: normalizeCatalogItems(data.donationsReason || []),
         condicionAlmacenamiento: normalizeCatalogItems(data.storageConditions || []),
         compromisosIdoneidad:data.intentionTypes|| [],

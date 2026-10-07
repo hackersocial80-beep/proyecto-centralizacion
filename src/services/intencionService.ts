@@ -72,6 +72,45 @@ const catalogId = (
   return match?.id ?? (allowUnmatchedValue ? selected : "");
 };
 
+const extractIntentId = (value: unknown): string | undefined => {
+  if (!value || typeof value !== "object") return undefined;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const id = extractIntentId(item);
+      if (id) return id;
+    }
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const idKeys = new Set(["intentid", "intentionid", "intentpublicid", "publicid", "intentguid", "intentionguid", "uuid", "guid", "id"]);
+  for (const [key, candidate] of Object.entries(record)) {
+    if (!idKeys.has(key.toLowerCase())) continue;
+    if ((typeof candidate === "string" || typeof candidate === "number") && String(candidate).trim()) {
+      return String(candidate).trim();
+    }
+  }
+
+  const wrapperKeys = new Set(["data", "intent", "intention", "result", "createdintent", "created"]);
+  for (const [key, nested] of Object.entries(record)) {
+    if (!wrapperKeys.has(key.toLowerCase())) continue;
+    const id = extractIntentId(nested);
+    if (id) return id;
+  }
+  return undefined;
+};
+
+const intentIdFromLocation = (location?: unknown): string | undefined => {
+  if (typeof location !== "string" || !location.trim()) return undefined;
+  const lastSegment = location.split(/[?#]/, 1)[0].split("/").filter(Boolean).pop();
+  if (!lastSegment || lastSegment.toLowerCase() === "intents") return undefined;
+  try {
+    return decodeURIComponent(lastSegment);
+  } catch {
+    return lastSegment;
+  }
+};
+
 export async function saveIntencion(
   data: IntencionApiData,
   files: { documents?: File[]; photos?: File[] } = {}
@@ -195,6 +234,8 @@ export async function saveIntencion(
       withCredentials: true,
     });
     const result = response.data?.data ?? response.data;
+    const createdIntentId =
+      extractIntentId(response.data) ?? intentIdFromLocation(response.headers?.["location"]);
     if (response.data?.success === false) {
       throw new Error(response.data.message || "La API rechazó la intención.");
     }
@@ -202,8 +243,7 @@ export async function saveIntencion(
     const documents = files.documents ?? [];
     const photos = files.photos ?? [];
     if (documents.length > 0 || photos.length > 0) {
-      const intentId = result?.id ?? result?.intentId ?? result?.intentID ?? result?.data?.id;
-      if (!intentId) {
+      if (!createdIntentId) {
         throw new Error("La intención se creó, pero la API no devolvió su ID para cargar los archivos.");
       }
 
@@ -212,7 +252,7 @@ export async function saveIntencion(
       photos.forEach((file) => formData.append("Photos", file, file.name));
 
       await axios.post(
-        `${API_BASE_URL}/Intents/${encodeURIComponent(String(intentId))}/files`,
+        `${API_BASE_URL}/Intents/${encodeURIComponent(createdIntentId)}/files`,
         formData,
         {
           headers: {
@@ -228,7 +268,7 @@ export async function saveIntencion(
     const now = new Date().toISOString();
     const saved = {
       ...data,
-      id: result?.id ?? result?.intentId ?? data.id ?? crypto.randomUUID(),
+      id: createdIntentId ?? result?.id ?? result?.intentId ?? data.id ?? crypto.randomUUID(),
       codigo: result?.codigo ?? result?.code ?? data.codigo,
       estado: "Capturada",
       createdAt: now,

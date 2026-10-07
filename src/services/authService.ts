@@ -35,6 +35,27 @@ export function setToken(token: string): void {
   localStorage.setItem("auth_token", token);
 }
 
+export function getAuthExpirationTime(): number | null {
+  const raw = localStorage.getItem("authExpiresAt");
+  if (!raw) return null;
+
+  // La API normalmente devuelve una fecha ISO; también admitimos epoch en
+  // segundos o milisegundos por si cambia el formato de la respuesta.
+  const numericValue = Number(raw);
+  const expiration = Number.isFinite(numericValue)
+    ? numericValue < 1_000_000_000_000 ? numericValue * 1000 : numericValue
+    : Date.parse(raw);
+
+  return Number.isFinite(expiration) ? expiration : null;
+}
+
+export function clearAuthSession(): void {
+  localStorage.removeItem("authUser");
+  localStorage.removeItem("authExpiresAt");
+  localStorage.removeItem("authIsDemo");
+  localStorage.removeItem("auth_token");
+}
+
 export async function loginUser(
   login: string,
   password: string

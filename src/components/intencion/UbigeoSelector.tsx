@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import {
-  Select
-} from "../ui";
+import { Input, Select } from "../ui";
 import { fetchDepartments as apiFetchDepartments, fetchProvinces as apiFetchProvinces, fetchDistricts as apiFetchDistricts } from "../../services/catalogService";
 
 // Tipos locales para el manejo de Ubigeo
 interface UbigeoItem {
   code: string;
   name: string;
+  postalCode?: string;
 }
 
 interface ProductoForm {
@@ -54,7 +53,7 @@ export default function UbigeoSelector({
   onChange
 }: {
   initialValues: Partial<ProductoForm>;
-  onChange: (field: "departamento" | "provincia" | "distrito", value: string) => void;
+  onChange: (field: "departamento" | "provincia" | "distrito" | "codigoPostal", value: string) => void;
 }) {
   const [departments, setDepartments] = useState<UbigeoItem[]>([]);
   const [provinces, setProvinces] = useState<UbigeoItem[]>([]);
@@ -66,8 +65,8 @@ export default function UbigeoSelector({
     try {
       const data = await apiFetchDepartments();
       const normalized = (data || []).map((item: any) => ({
-        code: String(item.code || item.id || ""),
-        name: item.name || item.descripcion || "Sin nombre"
+        code: String(item.departmentCode ?? item.code ?? item.id ?? ""),
+        name: item.departmentName ?? item.name ?? item.descripcion ?? "Sin nombre"
       }));
       setDepartments(normalized);
     } catch (e) {
@@ -82,8 +81,8 @@ export default function UbigeoSelector({
     try {
       const data = await apiFetchProvinces(deptCode);
       const normalized = (data || []).map((item: any) => ({
-        code: String(item.code || item.id || ""),
-        name: item.name || item.descripcion || "Sin nombre"
+        code: String(item.provinceCode ?? item.code ?? item.id ?? ""),
+        name: item.provinceName ?? item.name ?? item.descripcion ?? "Sin nombre"
       }));
       setProvinces(normalized);
     } catch (e) {
@@ -98,10 +97,13 @@ export default function UbigeoSelector({
     try {
       const data = await apiFetchDistricts(provCode);
       const normalized = (data || []).map((item: any) => ({
-        code: String(item.code || item.id || ""),
-        name: item.name || item.descripcion || "Sin nombre"
+        code: String(item.districtCode ?? item.code ?? item.id ?? ""),
+        name: item.districtName ?? item.name ?? item.descripcion ?? "Sin nombre",
+        postalCode: String(item.postalCode ?? item.postalcode ?? item.postal_code ?? item.zipCode ?? item.zipcode ?? item.codigoPostal ?? item.codigo_postal ?? ""),
       }));
       setDistricts(normalized);
+      const selectedDistrict = normalized.find((item: UbigeoItem) => item.code === initialValues.distrito);
+      onChange("codigoPostal", selectedDistrict?.code || "");
     } catch (e) {
       console.error("Error fetching districts", e);
     } finally {
@@ -113,24 +115,47 @@ export default function UbigeoSelector({
     loadDepartments();
   }, []);
 
+  useEffect(() => {
+    if (initialValues.departamento) {
+      loadProvinces(initialValues.departamento);
+    } else {
+      setProvinces([]);
+      setDistricts([]);
+    }
+  }, [initialValues.departamento]);
+
+  useEffect(() => {
+    if (initialValues.provincia) {
+      loadDistricts(initialValues.provincia);
+    } else {
+      setDistricts([]);
+      onChange("codigoPostal", "");
+    }
+  }, [initialValues.provincia]);
+
   const handleDeptChange = (val: string) => {
     onChange("departamento", val);
     onChange("provincia", "");
     onChange("distrito", "");
+    onChange("codigoPostal", "");
     setProvinces([]);
     setDistricts([]);
-    if (val) loadProvinces(val);
   };
 
   const handleProvChange = (val: string) => {
     onChange("provincia", val);
     onChange("distrito", "");
+    onChange("codigoPostal", "");
     setDistricts([]);
-    if (val) loadDistricts(val);
+  };
+
+  const handleDistrictChange = (code: string) => {
+    onChange("distrito", code);
+    onChange("codigoPostal", code);
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-4">
       <Select
         label="Departamento"
         value={initialValues.departamento || ""}
@@ -162,7 +187,7 @@ export default function UbigeoSelector({
       <Select
         label="Distrito"
         value={initialValues.distrito || ""}
-        onChange={(e) => onChange("distrito", e.target.value)}
+        onChange={(e) => handleDistrictChange(e.target.value)}
         disabled={!initialValues.provincia || isLoading.dist}
       >
         <option value="">Seleccionar Distrito</option>
@@ -172,6 +197,13 @@ export default function UbigeoSelector({
           </option>
         ))}
       </Select>
+
+      <Input
+        label="Código postal"
+        value={initialValues.codigoPostal || ""}
+        readOnly
+        placeholder="Se completa al seleccionar el distrito"
+      />
     </div>
   );
 }
