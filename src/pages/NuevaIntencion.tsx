@@ -1,9 +1,10 @@
-import { useState, useEffect, type FormEvent, useRef } from "react";
+import { useState, useEffect, type ChangeEvent, type FormEvent, useRef } from "react";
 import { Save, Trash2, Loader2, FileText, Package, CheckCircle, Truck, Upload, Download, MapPin } from "lucide-react";
 import ProductosGrid from "../components/intencion/ProductosGrid";
 import UbigeoSelector from "../components/intencion/UbigeoSelector";
 import {
-  type CompromisoIdoneidad,
+  type CompromisoIdoneidadFlags,
+  COMPROMISO_IDONEIDAD_INICIAL,
   type CondicionAlmacenamiento,
   type DocumentoAdjunto,
   type FotoAdjunta,
@@ -50,9 +51,14 @@ interface ProductoForm {
   procedencia: Procedencia;
 }
 
+const COMPROMISOS_IDONEIDAD: { key: keyof CompromisoIdoneidadFlags; label: string }[] = [
+  { key: "envase_integro", label: "Envase íntegro y sellado (cuando aplique)" },
+  { key: "sin_deterioro", label: "Producto sin signos de deterioro, contaminación o descomposición" },
+  { key: "conservacion", label: "Conservado según las condiciones establecidas por el fabricante" },
+];
 interface CalidadForm {
   motivoDonacion: MotivoDonacion | "";
-  compromisoIdoneidad: CompromisoIdoneidad[];
+  compromisoIdoneidad: CompromisoIdoneidadFlags;
   condicionAlmacenamiento: CondicionAlmacenamiento | "";
   fechaEstimadaEntrega: string;
   descripcionGeneralDonacion: string;
@@ -179,6 +185,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: "producto" | "documento" | "foto" } | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<Record<string, File>>({});
 
   const firstErrorRef = useRef<HTMLDivElement>(null);
 
@@ -187,6 +194,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   }, []);
 
   const [donante, setDonante] = useState("");
+  const [supplierId, setSupplierId] = useState("");
   const [contacto, setContacto] = useState("");
   const [fechaIntencion, setFechaIntencion] = useState(
     new Date().toISOString().slice(0, 10)
@@ -207,7 +215,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
   const [calidadForm, setCalidadForm] = useState<CalidadForm>({
     motivoDonacion: "",
-    compromisoIdoneidad: [],
+    compromisoIdoneidad: { ...COMPROMISO_IDONEIDAD_INICIAL },
     condicionAlmacenamiento: "",
     fechaEstimadaEntrega: "",
     descripcionGeneralDonacion: "",
@@ -250,6 +258,33 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     longitud: "",
     observacionesAcceso: "",
   });
+
+  useEffect(() => {
+    const normalize = (value: string) => value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+    const resolveId = (items: Array<{ id: string; name: string }>, value: string) =>
+      items.find((item) => item.id === value || normalize(item.name) === normalize(value))?.id
+      || items[0]?.id
+      || "";
+
+    if (catalogs.tipoLugar.length > 0) {
+      const id = resolveId(catalogs.tipoLugar, logisticaForm.tipoLugar);
+      if (id && id !== logisticaForm.tipoLugar) {
+        setLogisticaForm((prev) => ({ ...prev, tipoLugar: id as TipoLugar }));
+      }
+    }
+    if (catalogs.tipoAcceso.length > 0) {
+      const id = resolveId(catalogs.tipoAcceso, logisticaForm.tipoAcceso);
+      if (id && id !== logisticaForm.tipoAcceso) {
+        setLogisticaForm((prev) => ({ ...prev, tipoAcceso: id as TipoAcceso }));
+      }
+    }
+    if (catalogs.anticipacion.length > 0) {
+      const id = resolveId(catalogs.anticipacion, logisticaForm.anticipacion);
+      if (id && id !== logisticaForm.anticipacion) {
+        setLogisticaForm((prev) => ({ ...prev, anticipacion: id as Anticipacion }));
+      }
+    }
+  }, [catalogs.tipoLugar, catalogs.tipoAcceso, catalogs.anticipacion, logisticaForm.tipoLugar, logisticaForm.tipoAcceso, logisticaForm.anticipacion]);
 
   const setProductoField = <K extends keyof ProductoForm>(
     id: string,
@@ -367,6 +402,12 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         ...prev,
         documentos: prev.documentos.filter((d) => d.id !== id),
       }));
+      setAttachmentFiles((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+
     }
 
     if (type === "foto") {
@@ -374,44 +415,65 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         ...prev,
         fotos: prev.fotos.filter((f) => f.id !== id),
       }));
+      setAttachmentFiles((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+
     }
 
     setConfirmDelete(null);
   };
 
-  const handleAddDocumentos = (files: FileList) => {
-    const nuevos: DocumentoAdjunto[] = Array.from(files).map((f) => ({
-      id: crypto.randomUUID(),
-      nombre: f.name,
-      tipo: f.type,
-      tamanoKb: Math.round(f.size / 1024),
-      url: URL.createObjectURL(f),
-    }));
+  const handleAddDocumentos = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    const fileMap: Record<string, File> = {};
+    const nuevos: DocumentoAdjunto[] = files.map((file) => {
+      const id = crypto.randomUUID();
+      fileMap[id] = file;
+      return {
+        id,
+        nombre: file.name,
+        tipo: file.type,
+        tamanoKb: Math.round(file.size / 1024),
+        url: URL.createObjectURL(file),
+      };
+    });
 
-    setCalidadForm((prev) => ({
-      ...prev,
-      documentos: [...prev.documentos, ...nuevos],
-    }));
+    setAttachmentFiles((prev) => ({ ...prev, ...fileMap }));
+    setCalidadForm((prev) => ({ ...prev, documentos: [...prev.documentos, ...nuevos] }));
+    event.target.value = "";
   };
 
-  const handleAddFotos = (files: FileList) => {
-    const nuevas: FotoAdjunta[] = Array.from(files).map((f) => ({
-      id: crypto.randomUUID(),
-      nombre: f.name,
-      url: URL.createObjectURL(f),
-    }));
+  const handleAddFotos = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    const fileMap: Record<string, File> = {};
+    const nuevas: FotoAdjunta[] = files.map((file) => {
+      const id = crypto.randomUUID();
+      fileMap[id] = file;
+      return { id, nombre: file.name, url: URL.createObjectURL(file) };
+    });
 
-    setCalidadForm((prev) => ({
-      ...prev,
-      fotos: [...prev.fotos, ...nuevas],
-    }));
+    setAttachmentFiles((prev) => ({ ...prev, ...fileMap }));
+    setCalidadForm((prev) => ({ ...prev, fotos: [...prev.fotos, ...nuevas] }));
+    event.target.value = "";
   };
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    if (!donante.trim()) errors.donante = "El donante es obligatorio";
+    if (!supplierId) errors.donante = "Selecciona un donante del catálogo";
     if (!contacto.trim()) errors.contacto = "El contacto es obligatorio";
     if (!responsable.trim()) errors.responsable = "El responsable es obligatorio";
     if (!canal) errors.canal = "Selecciona un canal";
+    if (!catalogs.tipoLugar.some((item) => item.id === logisticaForm.tipoLugar)) {
+      errors.tipoLugar = "Selecciona un tipo de lugar del catálogo";
+    }
+    if (!catalogs.tipoAcceso.some((item) => item.id === logisticaForm.tipoAcceso)) {
+      errors.tipoAcceso = "Selecciona un tipo de acceso del catálogo";
+    }
+    if (!catalogs.anticipacion.some((item) => item.id === logisticaForm.anticipacion)) {
+      errors.anticipacion = "Selecciona un tiempo de anticipación del catálogo";
+    }
 
     if (!HIDE_PRODUCTS_TAB) {
       productosForm.forEach((p, idx) => {
@@ -478,10 +540,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         motivoDonacion:
           calidadForm.motivoDonacion || undefined,
 
-        compromisoIdoneidad:
-          calidadForm.compromisoIdoneidad.length > 0
-            ? calidadForm.compromisoIdoneidad
-            : undefined,
+        compromisoIdoneidad: { ...calidadForm.compromisoIdoneidad },
 
         condicionAlmacenamiento:
           calidadForm.condicionAlmacenamiento || undefined,
@@ -539,7 +598,14 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         createdAt: new Date().toISOString(),
       };
 
-      const guardada = await saveIntencion(nueva);
+      const guardada = await saveIntencion({ ...nueva, supplierId }, {
+        documents: calidadForm.documentos
+          .map((documento) => attachmentFiles[documento.id])
+          .filter((file): file is File => Boolean(file)),
+        photos: calidadForm.fotos
+          .map((foto) => attachmentFiles[foto.id])
+          .filter((file): file is File => Boolean(file)),
+      });
       intencionStore.add(guardada);
 
       showToast(
@@ -640,14 +706,24 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
             </h2>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               <div ref={firstErrorRef}>
-                <Input
+                <Select
                   label="Donante"
                   required
-                  value={donante}
-                  onChange={(e) => setDonante(e.target.value)}
-                  placeholder="Razon social o nombre"
+                  value={supplierId}
+                  onChange={(e) => {
+                    const supplier = catalogs.proveedores.find((item) => item.id === e.target.value);
+                    setSupplierId(supplier?.id || "");
+                    setDonante(supplier?.name || "");
+                  }}
                   error={validationErrors.donante}
-                />
+                >
+                  <option value="">Seleccionar donante</option>
+                  {catalogs.proveedores.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </Select>
               </div>
               <Input
                 label="Contacto"
@@ -944,84 +1020,23 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                   Compromiso de idoneidad
                 </label>
 
-                <div className="grid grid-cols-3 gap-6 w-full">
-                  {/* Check 1 */}
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={calidadForm.compromisoIdoneidad.includes(
-                        "envase_integro"
-                      )}
-
-                      onChange={(e) => {
-                        const value = "envase_integro";
-
-                        setCalidadField("compromisoIdoneidad",
-                          e.target.checked
-                            ? [...calidadForm.compromisoIdoneidad, value]
-                            : calidadForm.compromisoIdoneidad.filter(
-                              (item) => item !== value
-                            )
-                        );
-                      }}
-                      className="mt-1 h-4 w-4 shrink-0"
-                    />
-
-                    <span className="text-sm text-gray-700 leading-6">
-                      Envase íntegro y sellado (cuando aplique)
-                    </span>
-                  </label>
-
-                  {/* Check 2 */}
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 shrink-0"
-                      checked={calidadForm.compromisoIdoneidad.includes("sin_deterioro")}
-                      onChange={(e) => {
-                        const value = "sin_deterioro";
-                        setCalidadField(
-                          "compromisoIdoneidad",
-                          e.target.checked
-                            ? [...calidadForm.compromisoIdoneidad, value]
-                            : calidadForm.compromisoIdoneidad.filter(
-                              (item) => item !== value
-                            )
-                        );
-                      }}
-                    />
-
-                    <span className="text-sm text-gray-700 leading-6">
-                      Producto sin signos de deterioro, contaminación o descomposición
-                    </span>
-                  </label>
-
-                  {/* Check 3 */}
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 shrink-0"
-                      checked={calidadForm.compromisoIdoneidad.includes(
-                        "conservacion"
-                      )}
-                      onChange={(e) => {
-                        const value = "conservacion";
-
-                        setCalidadField(
-                          "compromisoIdoneidad",
-                          e.target.checked
-                            ? [...calidadForm.compromisoIdoneidad, value]
-                            : calidadForm.compromisoIdoneidad.filter(
-                              (item) => item !== value
-                            )
-                        );
-                      }}
-                    />
-
-                    <span className="text-sm text-gray-700 leading-6">
-                      Conservado según las condiciones establecidas por el fabricante
-                    </span>
-                  </label>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {COMPROMISOS_IDONEIDAD.map((compromiso) => (
+                    <label key={compromiso.key} className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={calidadForm.compromisoIdoneidad[compromiso.key]}
+                        onChange={(event) =>
+                          setCalidadField("compromisoIdoneidad", {
+                            ...calidadForm.compromisoIdoneidad,
+                            [compromiso.key]: event.target.checked,
+                          })
+                        }
+                        className="mt-1 h-4 w-4 shrink-0"
+                      />
+                      <span className="text-sm text-gray-700 leading-6">{compromiso.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1148,7 +1163,11 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 <Select
                   label="Tipo de Lugar"
                   value={logisticaForm.tipoLugar}
-                  onChange={(e) => setLogisticaField("tipoLugar", e.target.value as TipoLugar)}
+                  onChange={(e) => {
+                    setLogisticaField("tipoLugar", e.target.value as TipoLugar);
+                    setValidationErrors((prev) => ({ ...prev, tipoLugar: "" }));
+                  }}
+                  error={validationErrors.tipoLugar}
                 >
                   {catalogs.tipoLugar.map((u: any) => (
                     <option key={u.id} value={u.id}>
@@ -1264,7 +1283,11 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 <Select
                   label="Tipo de acceso"
                   value={logisticaForm.tipoAcceso}
-                  onChange={(event) => setLogisticaField("tipoAcceso", event.target.value as TipoAcceso)}
+                  onChange={(event) => {
+                    setLogisticaField("tipoAcceso", event.target.value as TipoAcceso);
+                    setValidationErrors((prev) => ({ ...prev, tipoAcceso: "" }));
+                  }}
+                  error={validationErrors.tipoAcceso}
                 >
                   {catalogs.tipoAcceso.map((item: any) => (
                     <option key={item.id || item} value={item.id || item}>{item.name || item}</option>
@@ -1300,7 +1323,15 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                   </div>
                 </FormField>
 
-                <Select label="Tiempo de anticipación requerida" value={logisticaForm.anticipacion} onChange={(event) => setLogisticaField("anticipacion", event.target.value as Anticipacion)}>
+                <Select
+                  label="Tiempo de anticipación requerida"
+                  value={logisticaForm.anticipacion}
+                  onChange={(event) => {
+                    setLogisticaField("anticipacion", event.target.value as Anticipacion);
+                    setValidationErrors((prev) => ({ ...prev, anticipacion: "" }));
+                  }}
+                  error={validationErrors.anticipacion}
+                >
                   {catalogs.anticipacion.map((item: any) => (
                     <option key={item.id || item} value={item.id || item}>{item.name || item}</option>
                   ))}

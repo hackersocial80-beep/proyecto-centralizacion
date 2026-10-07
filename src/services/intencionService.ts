@@ -1,7 +1,8 @@
 import { INITIAL_INTENCIONES, MOCK_ORGANIZACIONES } from "./mockData";
-import type { Intencion } from "../types/intencion";
+import { COMPROMISO_IDONEIDAD_INICIAL, type CompromisoIdoneidadFlags, type Intencion } from "../types/intencion";
 import axios from "axios";
 import { getToken } from "./authService";
+import { catalogStore } from "./catalogStore";
 
 const STORAGE_KEY = "mock_intenciones";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
@@ -24,8 +25,9 @@ function setStoredIntenciones(data: Intencion[]) {
 }
 
 type IntencionApiData = Intencion & {
+  supplierId?: string;
   motivoDonacion?: string;
-  compromisoIdoneidad?: string[] | string;
+  compromisoIdoneidad?: CompromisoIdoneidadFlags | string[] | string;
   condicionAlmacenamiento?: string;
   fechaEstimadaEntrega?: string;
   descripcionGeneralDonacion?: string;
@@ -51,7 +53,29 @@ const numberOrNull = (value: string) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export async function saveIntencion(data: IntencionApiData): Promise<Intencion> {
+const dateOnlyProperty = (property: string, value?: string) =>
+  value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? { [property]: value }
+    : {};
+
+const catalogId = (
+  items: Array<{ id: string; name: string }>,
+  value: unknown,
+  allowUnmatchedValue = true
+) => {
+  const selected = String(value ?? "");
+  const normalize = (text: string) => text.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+  const normalizedSelection = normalize(selected);
+  const match = items.find((item) =>
+    item.id === selected || normalize(item.name) === normalizedSelection
+  );
+  return match?.id ?? (allowUnmatchedValue ? selected : "");
+};
+
+export async function saveIntencion(
+  data: IntencionApiData,
+  files: { documents?: File[]; photos?: File[] } = {}
+): Promise<Intencion> {
   const token = getToken();
   const loggedUser = (() => {
     try {
@@ -66,20 +90,34 @@ export async function saveIntencion(data: IntencionApiData): Promise<Intencion> 
   const createdBy = loggedUser?.username || loggedUser?.publicId || data.responsable;
   const quality = data as IntencionApiData;
   const logistics = data.logistica;
-  const commitments = Array.isArray(quality.compromisoIdoneidad)
-    ? quality.compromisoIdoneidad
-    : quality.compromisoIdoneidad ? [quality.compromisoIdoneidad] : [];
-
+  const catalogs = catalogStore.getState();
+  const rawCommitments = quality.compromisoIdoneidad;
+  const commitmentFlags: CompromisoIdoneidadFlags =
+    rawCommitments !== null &&
+    typeof rawCommitments === "object" &&
+    !Array.isArray(rawCommitments)
+      ? { ...COMPROMISO_IDONEIDAD_INICIAL, ...rawCommitments }
+      : {
+          envase_integro: Array.isArray(rawCommitments)
+            ? rawCommitments.includes("envase_integro")
+            : rawCommitments === "envase_integro",
+          sin_deterioro: Array.isArray(rawCommitments)
+            ? rawCommitments.includes("sin_deterioro")
+            : rawCommitments === "sin_deterioro",
+          conservacion: Array.isArray(rawCommitments)
+            ? rawCommitments.includes("conservacion")
+            : rawCommitments === "conservacion",
+        };
   // Convertimos el modelo del formulario al contrato POST /api/Intents.
   const apiPayload = {
     statusCode: "1",
-    supplierId: import.meta.env.VITE_DEFAULT_SUPPLIER_ID || "SUP-001",
+    supplierId: data.supplierId || import.meta.env.VITE_DEFAULT_SUPPLIER_ID || "SUP-001",
     supplierName: data.donante,
     contacto: data.contacto || null,
     fecha: data.fechaIntencion,
-    channelId: data.canal,
+    channelId: catalogId(catalogs.canales, data.canal),
     responsable: data.responsable,
-    intentTypeId: data.tipoIntencion,
+    intentTypeId: catalogId(catalogs.tiposIntencion, data.tipoIntencion),
     productSensibily:
       quality.incluyeProductosSensibles === true ||
       quality.incluyeProductosSensibles === "Si" ||
@@ -87,10 +125,12 @@ export async function saveIntencion(data: IntencionApiData): Promise<Intencion> 
         ? "Si"
         : "No",
     createdBy,
-    donationReasonId: quality.motivoDonacion || "",
-    suitabilityId: commitments.join(","),
-    storageConditionId: quality.condicionAlmacenamiento || "",
-    estimatedDeliveryDate: quality.fechaEstimadaEntrega || "",
+    donationReasonId: catalogId(catalogs.motivosDonacion, quality.motivoDonacion),
+    packagingIntact: commitmentFlags.envase_integro,
+    noSignsOfDeterioration: commitmentFlags.sin_deterioro,
+    storedAsRecommended: commitmentFlags.conservacion,
+    storageConditionId: catalogId(catalogs.condicionAlmacenamiento, quality.condicionAlmacenamiento),
+    ...dateOnlyProperty("estimatedDeliveryDate", quality.fechaEstimadaEntrega),
     productConditionId: quality.condicionProducto || "",
     donationDescription: quality.descripcionGeneralDonacion || "",
     consumptionRecommendation: quality.recomendacionesConsumo || "",
@@ -107,14 +147,14 @@ export async function saveIntencion(data: IntencionApiData): Promise<Intencion> 
       description: product.descripcion || "",
       offeredQuantity: product.cantidad,
       realQuantity: product.cantidad,
-      unitCode: product.unidad,
+      unitCode: catalogId(catalogs.unidades, product.unidad),
       estimatedWeight: product.pesoEstimadoKg,
-      expirationDate: product.vidaUtil || "",
-      productTypeCode: product.tipoProducto,
-      originCode: product.procedencia,
+      ...dateOnlyProperty("expirationDate", product.vidaUtil),
+      productTypeCode: catalogId(catalogs.tiposProducto, product.tipoProducto),
+      originCode: catalogId(catalogs.procedencias, product.procedencia),
     })),
     infoLogistic: {
-      placeTypeId: logistics.tipoLugar,
+      placeTypeId: catalogId(catalogs.tipoLugar, logistics.tipoLugar, false),
       placeName: logistics.lugar,
       contactName: logistics.contactoPlanta,
       direccion: logistics.direccion,
@@ -125,13 +165,13 @@ export async function saveIntencion(data: IntencionApiData): Promise<Intencion> 
       postalCode: logistics.codigoPostal,
       latitude: numberOrNull(logistics.latitud),
       longitude: numberOrNull(logistics.longitud),
-      accesTypeId: logistics.tipoAcceso,
+      accesTypeId: catalogId(catalogs.tipoAcceso, logistics.tipoAcceso, false),
       requiresAuthorization: logistics.requiereAutorizacion === "Si",
-      anticipationTimeId: logistics.anticipacion,
+      anticipationTimeId: catalogId(catalogs.anticipacion, logistics.anticipacion, false),
       authorizationContact: logistics.contactoAutorizacion || null,
       contactNumber: logistics.numeroContacto || null,
-      starDate: logistics.fechaDesde || "",
-      endDate: logistics.fechaHasta || "",
+      ...dateOnlyProperty("starDate", logistics.fechaDesde),
+      ...dateOnlyProperty("endDate", logistics.fechaHasta),
       startTime: logistics.horarioInicio || "",
       endTime: logistics.horarioFinal || "",
       estimatedLoadingMinutes: Number(logistics.tiempoEstimadoCarga) || 0,
@@ -159,6 +199,31 @@ export async function saveIntencion(data: IntencionApiData): Promise<Intencion> 
       throw new Error(response.data.message || "La API rechazó la intención.");
     }
 
+    const documents = files.documents ?? [];
+    const photos = files.photos ?? [];
+    if (documents.length > 0 || photos.length > 0) {
+      const intentId = result?.id ?? result?.intentId ?? result?.intentID ?? result?.data?.id;
+      if (!intentId) {
+        throw new Error("La intención se creó, pero la API no devolvió su ID para cargar los archivos.");
+      }
+
+      const formData = new FormData();
+      documents.forEach((file) => formData.append("Documents", file, file.name));
+      photos.forEach((file) => formData.append("Photos", file, file.name));
+
+      await axios.post(
+        `${API_BASE_URL}/Intents/${encodeURIComponent(String(intentId))}/files`,
+        formData,
+        {
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          withCredentials: true,
+        }
+      );
+    }
+
     const current = getStoredIntenciones();
     const now = new Date().toISOString();
     const saved = {
@@ -169,7 +234,7 @@ export async function saveIntencion(data: IntencionApiData): Promise<Intencion> 
       createdAt: now,
       calidad: {
         motivoDonacion: quality.motivoDonacion,
-        compromisoIdoneidad: commitments,
+        compromisoIdoneidad: commitmentFlags,
         condicionAlmacenamiento: quality.condicionAlmacenamiento,
         fechaEstimadaEntrega: quality.fechaEstimadaEntrega,
         descripcionGeneralDonacion: quality.descripcionGeneralDonacion,

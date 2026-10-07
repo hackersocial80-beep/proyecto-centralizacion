@@ -47,6 +47,26 @@ export async function fetchCatalogs(): Promise<any> {
   return result.success ? result.data : null;
 }
 
+export async function fetchSuppliers(): Promise<any[]> {
+  let response = await safeFetch(`${API_BASE_URL}/Commons/suppliers`);
+  if (response.status === 401) {
+    response = await safeFetch(`${API_BASE_URL}/Commons/suppliers`, false);
+  }
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Error ${response.status}: ${errorText || "No se pudieron obtener los donantes."}`);
+  }
+
+  const result = await response.json();
+  if (Array.isArray(result)) return result;
+  const data = result?.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.suppliers)) return data.suppliers;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(result?.suppliers)) return result.suppliers;
+  return [];
+}
+
 export async function fetchDepartments(): Promise<any[]> {
   try {
     let response = await safeFetch(`${API_BASE_URL}/Commons/ubigeo/departments`);

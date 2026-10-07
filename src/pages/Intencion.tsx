@@ -1,16 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Search } from "lucide-react";
 import FiltrosIntencionBar from "../components/intencion/FiltrosIntencion";
-import ProductosGrid from "../components/intencion/ProductosGrid";
 import DetalleIntencion from "../components/intencion/DetalleIntencion";
 import {
   FILTROS_VACIOS,
   type FiltrosIntencion,
   type Intencion,
+  COMPROMISO_IDONEIDAD_INICIAL,
 } from "../types/intencion";
-import { useIntenciones, intencionStore } from "../services/intencionStore";
-
-type Tab = "productos" | "detalle";
+import { useIntenciones } from "../services/intencionStore";
+import { useCatalogs } from "../services/catalogStore";
 
 const estadoColor: Record<Intencion["estado"], string> = {
   Pendiente: "bg-amber-50 text-amber-700 border-amber-200",
@@ -27,12 +26,21 @@ export default function IntencionPage({
   onNuevaIntencion,
 }: Props) {
   const intenciones = useIntenciones();
+  const catalogs = useCatalogs();
+  const latestIntentId = useRef(intenciones[0]?.id ?? null);
   const [filtros, setFiltros] = useState<FiltrosIntencion>(FILTROS_VACIOS);
   const [seleccionadaId, setSeleccionadaId] = useState<string | null>(
     intenciones[0]?.id ?? null
   );
-  const [tab, setTab] = useState<Tab>("productos");
   const [busqueda, setBusqueda] = useState("");
+
+  useEffect(() => {
+    const newestId = intenciones[0]?.id;
+    if (newestId && newestId !== latestIntentId.current) {
+      latestIntentId.current = newestId;
+      setSeleccionadaId(newestId);
+    }
+  }, [intenciones]);
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -63,15 +71,7 @@ export default function IntencionPage({
     () => intenciones.find((i) => i.id === seleccionadaId) ?? filtradas[0] ?? null,
     [intenciones, seleccionadaId, filtradas]
   );
-
-  const eliminarProducto = (productoId: string) => {
-    if (!seleccionada) return;
-    const ok = window.confirm("¿Eliminar este producto de la intencion?");
-    if (!ok) return;
-    intencionStore.update(seleccionada.id, {
-      productos: seleccionada.productos.filter((p) => p.id !== productoId),
-    });
-  };
+  const calidadSeleccionada = seleccionada?.calidad;
 
   return (
     <div className="px-6 py-6 lg:px-10">
@@ -120,7 +120,6 @@ export default function IntencionPage({
                       type="button"
                       onClick={() => {
                         setSeleccionadaId(i.id);
-                        setTab("productos");
                       }}
                       className={`flex w-full items-start justify-between gap-2 px-4 py-3 text-left transition-colors ${activo
                           ? "bg-[#5cb89a]/10 border-l-4 border-[#5cb89a]"
@@ -186,54 +185,29 @@ export default function IntencionPage({
                 </span>
               </div>
 
-              {/* Tabs */}
-              <div className="border-b border-gray-200 px-5">
-                <div className="-mb-px flex gap-6">
-                  <button
-                    type="button"
-                    onClick={() => setTab("productos")}
-                    className={`border-b-2 py-3 text-sm font-medium transition-colors ${tab === "productos"
-                        ? "border-[#5cb89a] text-[#5cb89a]"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
-                      }`}
-                  >
-                    Productos ({seleccionada.productos.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTab("detalle")}
-                    className={`border-b-2 py-3 text-sm font-medium transition-colors ${tab === "detalle"
-                        ? "border-[#5cb89a] text-[#5cb89a]"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
-                      }`}
-                  >
-                    Detalle
-                  </button>
-                </div>
-              </div>
-
               <div className="p-5">
-                {tab === "productos" ? (
-                  <ProductosGrid
-                    productos={seleccionada.productos}
-                    editable
-                    onDelete={eliminarProducto}
-                  />
-                ) : (
-                  <DetalleIntencion
-                    motivoDonacion={seleccionada.motivoDonacion ?? ""}
-                    compromisoIdoneidad={seleccionada.compromisoIdoneidad ?? []}
-                    condicionAlmacenamiento={seleccionada.condicionAlmacenamiento ?? ""}
-                    fechaEstimadaEntrega={seleccionada.fechaEstimadaEntrega ?? ""}
-                    descripcionGeneralDonacion={seleccionada.descripcionGeneralDonacion ?? ""}
-                    incluyeProductosSensibles={seleccionada.incluyeProductosSensibles ?? ""}
-                    recomendacionesConsumo={seleccionada.recomendacionesConsumo ?? ""}
-                    condicionProducto={seleccionada.condicionProducto ?? ""}
-                    declaracionProducto={seleccionada.declaracionProducto ?? false}
+                <DetalleIntencion
+                    motivoDonacion={calidadSeleccionada?.motivoDonacion ?? (seleccionada as any).motivoDonacion ?? ""}
+                    donanteIntencion={seleccionada.donante}
+                    contactoIntencion={seleccionada.contacto}
+                    fechaIntencion={seleccionada.fechaIntencion}
+                    compromisoIdoneidad={calidadSeleccionada?.compromisoIdoneidad ?? (seleccionada as any).compromisoIdoneidad ?? COMPROMISO_IDONEIDAD_INICIAL}
+                    condicionAlmacenamiento={calidadSeleccionada?.condicionAlmacenamiento ?? (seleccionada as any).condicionAlmacenamiento ?? ""}
+                    fechaEstimadaEntrega={calidadSeleccionada?.fechaEstimadaEntrega ?? (seleccionada as any).fechaEstimadaEntrega ?? ""}
+                    descripcionGeneralDonacion={calidadSeleccionada?.descripcionGeneralDonacion ?? (seleccionada as any).descripcionGeneralDonacion ?? ""}
+                    incluyeProductosSensibles={calidadSeleccionada?.incluyeProductosSensibles ?? (seleccionada as any).incluyeProductosSensibles ?? ""}
+                    recomendacionesConsumo={calidadSeleccionada?.recomendacionesConsumo ?? (seleccionada as any).recomendacionesConsumo ?? ""}
+                    condicionProducto={calidadSeleccionada?.condicionProducto ?? (seleccionada as any).condicionProducto ?? ""}
+                    declaracionProducto={String(calidadSeleccionada?.declaracionProducto ?? (seleccionada as any).declaracionProducto ?? "")}
                     documentos={seleccionada.documentos ?? []}
                     fotos={seleccionada.fotos ?? []}
+                    pesoTotalKg={seleccionada.productos.reduce(
+                      (total, producto) => total + (Number(producto.pesoEstimadoKg) || 0),
+                      0
+                    )}
+                    logistica={seleccionada.logistica}
+                    catalogosLogistica={catalogs}
                   />
-                )}
               </div>
             </div>
           ) : (

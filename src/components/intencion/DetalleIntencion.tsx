@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { FileText, Image as ImageIcon, Download, X } from "lucide-react";
 import type {
   CompromisoIdoneidad,
+  CompromisoIdoneidadFlags,
   CondicionAlmacenamiento,
   DocumentoAdjunto,
   FotoAdjunta,
+  LogisticaIntencion,
   MotivoDonacion,
   ProductoSensible,
 } from "../../types/intencion";
@@ -16,7 +19,10 @@ import {
 
 interface Props {
   motivoDonacion: MotivoDonacion | "";
-  compromisoIdoneidad: CompromisoIdoneidad | "";
+  donanteIntencion: string;
+  contactoIntencion: string;
+  fechaIntencion: string;
+  compromisoIdoneidad: CompromisoIdoneidadFlags | CompromisoIdoneidad[] | CompromisoIdoneidad | "";
   condicionAlmacenamiento: CondicionAlmacenamiento | "";
   fechaEstimadaEntrega: string;
   descripcionGeneralDonacion: string;
@@ -26,10 +32,17 @@ interface Props {
   declaracionProducto: string;
   documentos: DocumentoAdjunto[];
   fotos: FotoAdjunta[];
+  pesoTotalKg?: number;
+  logistica?: LogisticaIntencion;
+  catalogosLogistica?: {
+    tipoLugar: Array<{ id: string; name: string }>;
+    tipoAcceso: Array<{ id: string; name: string }>;
+    anticipacion: Array<{ id: string; name: string }>;
+  };
   editable?: boolean;
   onChange?: (patch: {
     motivoDonacion?: MotivoDonacion;
-    compromisoIdoneidad?: CompromisoIdoneidad;
+    compromisoIdoneidad?: CompromisoIdoneidadFlags;
     condicionAlmacenamiento?: CondicionAlmacenamiento;
     fechaEstimadaEntrega?: string;
     descripcionGeneralDonacion?: string;
@@ -49,6 +62,9 @@ const formatKb = (kb: number) =>
 
 export default function DetalleIntencion({
   motivoDonacion,
+  donanteIntencion,
+  contactoIntencion,
+  fechaIntencion,
   compromisoIdoneidad,
   condicionAlmacenamiento,
   fechaEstimadaEntrega,
@@ -59,6 +75,9 @@ export default function DetalleIntencion({
   declaracionProducto,
   documentos,
   fotos,
+  pesoTotalKg = 0,
+  logistica,
+  catalogosLogistica,
   editable,
   onChange,
   onAddDocumentos,
@@ -66,9 +85,56 @@ export default function DetalleIntencion({
   onRemoveDocumento,
   onRemoveFoto,
 }: Props) {
+  const [mapaAbierto, setMapaAbierto] = useState(false);
+  const catalogLabel = (items: Array<{ id: string; name: string }> = [], value?: string) =>
+    items.find((item) => item.id === value || item.name === value)?.name || value || "Sin especificar";
+  const requisitosLabels: Record<string, string> = {
+    "1": "DNI vigente",
+    "2": "Carnet de sanidad",
+    "3": "Autorización del donante",
+    "4": "Uso obligatorio de EPP",
+    "5": "Seguro SCTR",
+    "6": "Inducción de seguridad",
+    "7": "Vehículo con sello de fumigación",
+    "8": "Otros requisitos",
+  };
+  const isCommitmentSelected = (key: keyof CompromisoIdoneidadFlags) => {
+    if (Array.isArray(compromisoIdoneidad)) {
+      return compromisoIdoneidad.includes(key as unknown as CompromisoIdoneidad);
+    }
+    if (typeof compromisoIdoneidad === "string") {
+      return compromisoIdoneidad.includes(key);
+    }
+    return Boolean(compromisoIdoneidad?.[key]);
+  };
+
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Peso total estimado de productos</p>
+        <p className="mt-1 text-2xl font-bold text-emerald-900">{pesoTotalKg.toLocaleString("es-PE", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} kg</p>
+      </div>
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <h3 className="mb-4 text-base font-bold text-gray-900">Calidad e información de la intención</h3>
       <div className="grid gap-5 md:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-800">Donante</label>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+            {donanteIntencion || "Sin especificar"}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-800">Contacto</label>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+            {contactoIntencion || "Sin especificar"}
+          </div>
+        </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-800">Fecha de intención</label>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+            {fechaIntencion || "Sin especificar"}
+          </div>
+        </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-800">
             Motivo de donacion
@@ -105,7 +171,7 @@ export default function DetalleIntencion({
             <div className="flex items-start gap-2">
               <input
                 type="checkbox"
-                checked={compromisoIdoneidad.includes("envase_integro")}
+                checked={isCommitmentSelected("envase_integro")}
                 readOnly
                 className="mt-1 h-4 w-4"
               />
@@ -118,7 +184,7 @@ export default function DetalleIntencion({
             <div className="flex items-start gap-2">
               <input
                 type="checkbox"
-                checked={compromisoIdoneidad.includes("sin_deterioro")}
+                checked={isCommitmentSelected("sin_deterioro")}
                 readOnly
                 className="mt-1 h-4 w-4"
               />
@@ -132,7 +198,7 @@ export default function DetalleIntencion({
             <div className="flex items-start gap-2">
               <input
                 type="checkbox"
-                checked={compromisoIdoneidad.includes("conservacion")}
+                checked={isCommitmentSelected("conservacion")}
                 readOnly
                 className="mt-1 h-4 w-4"
               />
@@ -224,6 +290,8 @@ export default function DetalleIntencion({
           )}
         </div>
       </div>
+
+      </section>
 
       <div>
         <label className="mb-1.5 block text-sm font-medium text-gray-800">
@@ -441,6 +509,108 @@ export default function DetalleIntencion({
           </div>
         )}
       </div>
+
+      {logistica && (
+        <section className="rounded-xl border border-gray-200 bg-white p-5">
+          <h3 className="mb-4 text-base font-bold text-gray-900">Logística y recojo</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ["Tipo de lugar", catalogLabel(catalogosLogistica?.tipoLugar, String(logistica.tipoLugar || ""))],
+              ["Lugar / planta", logistica.lugar],
+              ["Contacto en planta", logistica.contactoPlanta],
+              ["Dirección", logistica.direccion],
+              ["Referencia", logistica.referencia],
+              ["Distrito", String(logistica.distrito || "")],
+              ["Provincia", String(logistica.provincia || "")],
+              ["Departamento", String(logistica.departamento || "")],
+              ["Código postal", logistica.codigoPostal],
+              ["Tipo de acceso", catalogLabel(catalogosLogistica?.tipoAcceso, String(logistica.tipoAcceso || ""))],
+              ["Requiere autorización", logistica.requiereAutorizacion],
+              ["Anticipación requerida", catalogLabel(catalogosLogistica?.anticipacion, String(logistica.anticipacion || ""))],
+              ["Contacto de autorización", logistica.contactoAutorizacion],
+              ["Teléfono de contacto", logistica.numeroContacto],
+              ["Horario de atención", [logistica.horarioInicio, logistica.horarioFinal].filter(Boolean).join(" a ")],
+              ["Días de atención", logistica.diasAtencion?.join(", ")],
+              ["Disponibilidad para recojo", [logistica.fechaDesde, logistica.fechaHasta].filter(Boolean).join(" a ")],
+              ["Horario disponible", logistica.horarioDisponible],
+              ["Tiempo estimado de carga", logistica.tiempoEstimadoCarga ? `${logistica.tiempoEstimadoCarga} min` : ""],
+              ["Latitud", logistica.latitud],
+              ["Longitud", logistica.longitud],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <p className="text-xs font-medium text-gray-500">{label}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{value || "Sin especificar"}</p>
+              </div>
+            ))}
+          </div>
+          {logistica.requisitosIngreso?.length > 0 && (
+            <div className="mt-5">
+              <p className="text-xs font-medium text-gray-500">Requisitos para ingreso a planta</p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {logistica.requisitosIngreso.map((id) => (
+                  <li key={id} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">
+                    {requisitosLabels[id] || id}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {logistica.observacionesAcceso && (
+            <div className="mt-4">
+              <p className="text-xs font-medium text-gray-500">Otros requisitos / observaciones de acceso</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{logistica.observacionesAcceso}</p>
+            </div>
+          )}
+          {logistica.latitud && logistica.longitud && (
+            <button
+              type="button"
+              className="mt-4 inline-flex text-sm font-medium text-emerald-700 hover:underline"
+              onClick={() => setMapaAbierto(true)}
+            >
+              Ver ubicación en mapa
+            </button>
+          )}
+        </section>
+      )}
+
+      {mapaAbierto && logistica && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setMapaAbierto(false);
+          }}
+        >
+          <section
+            className="w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mapa-intencion-titulo"
+          >
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h3 id="mapa-intencion-titulo" className="font-semibold text-gray-900">Ubicación del recojo</h3>
+                <p className="text-sm text-gray-500">{logistica.latitud}, {logistica.longitud}</p>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                onClick={() => setMapaAbierto(false)}
+                aria-label="Cerrar mapa"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <iframe
+              title="Mapa de ubicación del recojo"
+              src={`https://maps.google.com/maps?q=${encodeURIComponent(`${logistica.latitud},${logistica.longitud}`)}&z=15&output=embed`}
+              className="h-[min(70vh,600px)] w-full"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </section>
+        </div>
+      )}
     </div>
   );
 }

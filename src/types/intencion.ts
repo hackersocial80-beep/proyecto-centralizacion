@@ -54,6 +54,17 @@ export type UnidadMedida =
   | "saco"
   | "pack";
 
+export interface CompromisoIdoneidadFlags {
+  envase_integro: boolean;
+  sin_deterioro: boolean;
+  conservacion: boolean;
+}
+
+export const COMPROMISO_IDONEIDAD_INICIAL: CompromisoIdoneidadFlags = {
+  envase_integro: false,
+  sin_deterioro: false,
+  conservacion: false,
+};
 export type CompromisoIdoneidad =
   | "Producto apto para consumo humano"
   | "Cumple normativas sanitarias vigentes"
@@ -134,7 +145,7 @@ export interface ProductoIntencion {
 
 export interface CalidadIntencion {
   motivoDonacion: MotivoDonacion;
-  compromisoIdoneidad: CompromisoIdoneidad[];
+  compromisoIdoneidad: CompromisoIdoneidadFlags;
   condicionAlmacenamiento: CondicionAlmacenamiento;
   fechaEstimadaEntrega: string;
   descripcionGeneralDonacion: string;
