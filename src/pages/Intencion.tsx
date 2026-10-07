@@ -178,11 +178,16 @@ export default function IntencionPage({
                     </span>
                   </p>
                 </div>
-                <span
-                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${estadoColor[seleccionada.estado]}`}
-                >
-                  {seleccionada.estado} - {seleccionada.tipoIntencion}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${estadoColor[seleccionada.estado]}`}
+                  >
+                    {seleccionada.estado} - {seleccionada.tipoIntencion}
+                  </span>
+                  <p className="text-sm font-bold text-gray-900">
+                    Fecha de intención: {seleccionada.fechaIntencion || "Sin especificar"}
+                  </p>
+                </div>
               </div>
 
               <div className="p-5">
@@ -190,7 +195,6 @@ export default function IntencionPage({
                     motivoDonacion={calidadSeleccionada?.motivoDonacion ?? (seleccionada as any).motivoDonacion ?? ""}
                     donanteIntencion={seleccionada.donante}
                     contactoIntencion={seleccionada.contacto}
-                    fechaIntencion={seleccionada.fechaIntencion}
                     compromisoIdoneidad={calidadSeleccionada?.compromisoIdoneidad ?? (seleccionada as any).compromisoIdoneidad ?? COMPROMISO_IDONEIDAD_INICIAL}
                     condicionAlmacenamiento={calidadSeleccionada?.condicionAlmacenamiento ?? (seleccionada as any).condicionAlmacenamiento ?? ""}
                     fechaEstimadaEntrega={calidadSeleccionada?.fechaEstimadaEntrega ?? (seleccionada as any).fechaEstimadaEntrega ?? ""}

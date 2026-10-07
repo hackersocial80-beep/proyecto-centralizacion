@@ -21,7 +21,6 @@ interface Props {
   motivoDonacion: MotivoDonacion | "";
   donanteIntencion: string;
   contactoIntencion: string;
-  fechaIntencion: string;
   compromisoIdoneidad: CompromisoIdoneidadFlags | CompromisoIdoneidad[] | CompromisoIdoneidad | "";
   condicionAlmacenamiento: CondicionAlmacenamiento | "";
   fechaEstimadaEntrega: string;
@@ -64,7 +63,6 @@ export default function DetalleIntencion({
   motivoDonacion,
   donanteIntencion,
   contactoIntencion,
-  fechaIntencion,
   compromisoIdoneidad,
   condicionAlmacenamiento,
   fechaEstimadaEntrega,
@@ -127,12 +125,6 @@ export default function DetalleIntencion({
           <label className="mb-1.5 block text-sm font-medium text-gray-800">Contacto</label>
           <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
             {contactoIntencion || "Sin especificar"}
-          </div>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-800">Fecha de intención</label>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
-            {fechaIntencion || "Sin especificar"}
           </div>
         </div>
         <div>
