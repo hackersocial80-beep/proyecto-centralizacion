@@ -513,7 +513,7 @@ export default function DetalleIntencion({
       {logistica && (
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h3 className="mb-4 text-base font-bold text-gray-900">Logística y recojo</h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2">
             {[
               ["Tipo de lugar", catalogLabel(catalogosLogistica?.tipoLugar, String(logistica.tipoLugar || ""))],
               ["Lugar / planta", logistica.lugar],
@@ -538,8 +538,10 @@ export default function DetalleIntencion({
               ["Longitud", logistica.longitud],
             ].map(([label, value]) => (
               <div key={label}>
-                <p className="text-xs font-medium text-gray-500">{label}</p>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{value || "Sin especificar"}</p>
+                <label className="mb-1.5 block text-sm font-medium text-gray-800">{label}</label>
+                <div className="min-h-[42px] whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800">
+                  {value || "Sin especificar"}
+                </div>
               </div>
             ))}
           </div>
