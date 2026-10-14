@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LoginPage from "./pages/LoginPage";
 import MenuPrincipal from "./pages/MenuPrincipal";
 import IntencionPage from "./pages/Intencion";
@@ -6,7 +6,7 @@ import NuevaIntencion from "./pages/NuevaIntencion";
 import DonacionPage from "./pages/Donacion";
 import SeguimientoPage from "./pages/Seguimiento";
 import AppShell, { type ModuloKey } from "./components/AppShell";
-import type { LoginUser } from "./services/authService";
+import { clearAuthSession, getAuthExpirationTime, type LoginUser } from "./services/authService";
 import { ToastProvider } from "./components/ui/Toast";
 
 type Screen = ModuloKey | "login" | "nuevaIntencion";
@@ -14,15 +14,38 @@ type Screen = ModuloKey | "login" | "nuevaIntencion";
 export default function App() {
   const [screen, setScreen] = useState<Screen>(() => {
     if (typeof window === "undefined") return "login";
-    return localStorage.getItem("authUser") ? "menu" : "login";
+    const hasUser = Boolean(localStorage.getItem("authUser"));
+    const expiresAt = getAuthExpirationTime();
+    if (hasUser && expiresAt !== null && expiresAt <= Date.now()) {
+      clearAuthSession();
+      return "login";
+    }
+    return hasUser ? "menu" : "login";
   });
 
   const goToLogin = () => {
-    localStorage.removeItem("authUser");
-    localStorage.removeItem("authExpiresAt");
-    localStorage.removeItem("authIsDemo");
+    clearAuthSession();
     setScreen("login");
   };
+
+  useEffect(() => {
+    if (screen === "login") return;
+    const expiresAt = getAuthExpirationTime();
+    if (expiresAt === null) return;
+
+    const remainingMs = expiresAt - Date.now();
+    if (remainingMs <= 0) {
+      goToLogin();
+      return;
+    }
+
+    // Los timeouts del navegador tienen un límite aproximado de 24.8 días.
+    const timeout = window.setTimeout(
+      goToLogin,
+      Math.min(remainingMs, 2_147_000_000)
+    );
+    return () => window.clearTimeout(timeout);
+  }, [screen]);
 
   if (screen === "login") {
     return (

@@ -1,16 +1,16 @@
 import { Download, RotateCcw, Search } from "lucide-react";
 import {
-  CANALES,
   ESTADOS_DONACION,
-  ORIGENES,
   RESPONSABLES,
-  TIPOS_INTENCION,
-  TIPOS_PROCESO,
   type FiltrosDonacion,
 } from "../../types/donacion";
 
 interface Props {
   filtros: FiltrosDonacion;
+  canales: Array<{ id: string; name: string }>;
+  origenes: Array<{ id: string; name: string }>;
+  tiposProceso: Array<{ id: string; name: string }>;
+  tiposIntencion: Array<{ id: string; name: string }>;
   onChange: (f: FiltrosDonacion) => void;
   onExportar: () => void;
   onNuevaIntencion: () => void;
@@ -18,6 +18,10 @@ interface Props {
 
 export default function FiltrosDonacionBar({
   filtros,
+  canales,
+  origenes,
+  tiposProceso,
+  tiposIntencion,
   onChange,
   onExportar,
   onNuevaIntencion,
@@ -83,13 +87,13 @@ export default function FiltrosDonacionBar({
           </label>
           <select
             value={filtros.canal}
-            onChange={(e) => setField("canal", e.target.value as FiltrosDonacion["canal"])}
+            onChange={(e) => setField("canal", e.target.value)}
             className={inputBase}
           >
             <option value="">Todos</option>
-            {CANALES.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            {canales.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>
@@ -113,7 +117,7 @@ export default function FiltrosDonacionBar({
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-600">
-            Fecha de intencion
+            Fecha de intención
           </label>
           <input
             type="date"
@@ -128,13 +132,13 @@ export default function FiltrosDonacionBar({
           </label>
           <select
             value={filtros.origen}
-            onChange={(e) => setField("origen", e.target.value as FiltrosDonacion["origen"])}
+            onChange={(e) => setField("origen", e.target.value)}
             className={inputBase}
           >
             <option value="">Todos</option>
-            {ORIGENES.map((o) => (
-              <option key={o} value={o}>
-                {o}
+            {origenes.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>
@@ -145,13 +149,13 @@ export default function FiltrosDonacionBar({
           </label>
           <select
             value={filtros.tipoProceso}
-            onChange={(e) => setField("tipoProceso", e.target.value as FiltrosDonacion["tipoProceso"])}
+            onChange={(e) => setField("tipoProceso", e.target.value)}
             className={inputBase}
           >
             <option value="">Todos</option>
-            {TIPOS_PROCESO.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {tiposProceso.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>
@@ -162,13 +166,13 @@ export default function FiltrosDonacionBar({
           </label>
           <select
             value={filtros.tipoIntencion}
-            onChange={(e) => setField("tipoIntencion", e.target.value as FiltrosDonacion["tipoIntencion"])}
+            onChange={(e) => setField("tipoIntencion", e.target.value)}
             className={inputBase}
           >
             <option value="">Todos</option>
-            {TIPOS_INTENCION.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {tiposIntencion.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>

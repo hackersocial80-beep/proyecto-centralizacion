@@ -9,14 +9,20 @@ import {
   COMPROMISO_IDONEIDAD_INICIAL,
 } from "../types/intencion";
 import { useIntenciones } from "../services/intencionStore";
-import { useCatalogs } from "../services/catalogStore";
+import { intencionStore } from "../services/intencionStore";
+import { getIntenciones } from "../services/intencionService";
+import { catalogStore, useCatalogs } from "../services/catalogStore";
 
 const estadoColor: Record<Intencion["estado"], string> = {
+  "": "bg-gray-50 text-gray-500 border-gray-200",
   Pendiente: "bg-amber-50 text-amber-700 border-amber-200",
   "En evaluacion": "bg-sky-50 text-sky-700 border-sky-200",
   Aprobada: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Rechazada: "bg-red-50 text-red-700 border-red-200",
 };
+
+const normalizeFilterValue = (value: string | undefined) =>
+  (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 interface Props {
   onNuevaIntencion: () => void;
@@ -27,12 +33,37 @@ export default function IntencionPage({
 }: Props) {
   const intenciones = useIntenciones();
   const catalogs = useCatalogs();
+  const catalogoCanales = catalogs.canales;
   const latestIntentId = useRef(intenciones[0]?.id ?? null);
   const [filtros, setFiltros] = useState<FiltrosIntencion>(FILTROS_VACIOS);
   const [seleccionadaId, setSeleccionadaId] = useState<string | null>(
     intenciones[0]?.id ?? null
   );
   const [busqueda, setBusqueda] = useState("");
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
+
+  useEffect(() => {
+    let activo = true;
+    const cargar = async () => {
+      setCargando(true);
+      setErrorCarga("");
+      try {
+        await catalogStore.loadCatalogs();
+        const data = await getIntenciones();
+        if (activo) intencionStore.setAll(data);
+      } catch (error) {
+        console.error("Error cargando intenciones desde GetIntents:", error);
+        if (activo) {
+          setErrorCarga("No se pudo cargar el listado desde el servidor. Verifica tu sesión e intenta actualizar.");
+        }
+      } finally {
+        if (activo) setCargando(false);
+      }
+    };
+    void cargar();
+    return () => { activo = false; };
+  }, []);
 
   useEffect(() => {
     const newestId = intenciones[0]?.id;
@@ -45,17 +76,29 @@ export default function IntencionPage({
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
     return intenciones.filter((i) => {
-      if (filtros.donante && !i.donante.toLowerCase().includes(filtros.donante.toLowerCase()))
-        return false;
+      if (filtros.donante) {
+        const selectedSupplier = catalogs.proveedores.find((supplier) => supplier.id === filtros.donante);
+        const donorValue = i.donante.trim().toLowerCase();
+        if (
+          donorValue !== filtros.donante.trim().toLowerCase() &&
+          donorValue !== selectedSupplier?.name.trim().toLowerCase()
+        ) return false;
+      }
       if (filtros.contacto && !i.contacto.toLowerCase().includes(filtros.contacto.toLowerCase()))
         return false;
       if (filtros.fechaIntencion && i.fechaIntencion !== filtros.fechaIntencion)
         return false;
-      if (filtros.canal && i.canal !== filtros.canal) return false;
+      if (filtros.canal) {
+        const selectedOrigin = catalogoCanales.find((origin) => origin.id === filtros.canal);
+        const selectedValues = [filtros.canal, selectedOrigin?.name].map(normalizeFilterValue);
+        if (!selectedValues.includes(normalizeFilterValue(i.canal))) return false;
+      }
       if (filtros.responsable && i.responsable !== filtros.responsable)
         return false;
-      if (filtros.tipoIntencion && i.tipoIntencion !== filtros.tipoIntencion)
-        return false;
+      if (filtros.tipoIntencion) {
+        const selectedType = catalogs.tiposIntencion.find((item) => item.id === filtros.tipoIntencion);
+        if (i.tipoIntencion !== filtros.tipoIntencion && i.tipoIntencion !== selectedType?.name) return false;
+      }
       if (
         q &&
         !`${i.codigo} ${i.donante} ${i.contacto}`
@@ -65,13 +108,25 @@ export default function IntencionPage({
         return false;
       return true;
     });
-  }, [intenciones, filtros, busqueda]);
+  }, [intenciones, filtros, busqueda, catalogoCanales, catalogs.proveedores, catalogs.tiposIntencion]);
+
+  useEffect(() => {
+    if (seleccionadaId && !filtradas.some((intencion) => intencion.id === seleccionadaId)) {
+      setSeleccionadaId(filtradas[0]?.id ?? null);
+    }
+  }, [filtradas, seleccionadaId]);
 
   const seleccionada = useMemo(
-    () => intenciones.find((i) => i.id === seleccionadaId) ?? filtradas[0] ?? null,
-    [intenciones, seleccionadaId, filtradas]
+    () => filtradas.find((i) => i.id === seleccionadaId) ?? filtradas[0] ?? null,
+    [seleccionadaId, filtradas]
   );
   const calidadSeleccionada = seleccionada?.calidad;
+  const canalVisible = seleccionada
+    ? catalogoCanales.find((origin) =>
+        normalizeFilterValue(origin.id) === normalizeFilterValue(seleccionada.canal) ||
+        normalizeFilterValue(origin.name) === normalizeFilterValue(seleccionada.canal)
+      )?.name ?? seleccionada.canal
+    : "";
 
   return (
     <div className="px-6 py-6 lg:px-10">
@@ -86,6 +141,9 @@ export default function IntencionPage({
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <FiltrosIntencionBar
           filtros={filtros}
+          origins={catalogoCanales}
+          suppliers={catalogs.proveedores}
+          intentionTypes={catalogs.tiposIntencion}
           onChange={setFiltros}
           onNuevaIntencion={onNuevaIntencion}
         />
@@ -133,12 +191,13 @@ export default function IntencionPage({
                         <p className="text-xs text-gray-500">
                           {i.codigo} - {i.fechaIntencion}
                         </p>
-                        <span
-                          className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${estadoColor[i.estado]
-                            }`}
-                        >
-                          {i.estado}
-                        </span>
+                        {i.estado && (
+                          <span
+                            className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${estadoColor[i.estado]}`}
+                          >
+                            {i.estado}
+                          </span>
+                        )}
                       </div>
                       <ChevronRight
                         className={`mt-1 h-4 w-4 shrink-0 ${activo ? "text-[#5cb89a]" : "text-gray-400"
@@ -150,7 +209,7 @@ export default function IntencionPage({
               })}
               {filtradas.length === 0 && (
                 <li className="px-4 py-10 text-center text-sm text-gray-500">
-                  No hay intenciones que coincidan con los filtros.
+                  {cargando ? "Cargando intenciones..." : errorCarga || "No hay intenciones que coincidan con los filtros."}
                 </li>
               )}
             </ul>
@@ -171,7 +230,7 @@ export default function IntencionPage({
                   </h2>
                   <p className="text-sm text-gray-600">
                     {seleccionada.contacto} - Canal:{" "}
-                    <span className="font-medium">{seleccionada.canal}</span>{" "}
+                    <span className="font-medium">{canalVisible}</span>{" "}
                     - Responsable:{" "}
                     <span className="font-medium">
                       {seleccionada.responsable}
@@ -182,7 +241,9 @@ export default function IntencionPage({
                   <span
                     className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${estadoColor[seleccionada.estado]}`}
                   >
-                    {seleccionada.estado} - {seleccionada.tipoIntencion}
+                    {seleccionada.estado
+                      ? `${seleccionada.estado} - ${seleccionada.tipoIntencion}`
+                      : seleccionada.tipoIntencion}
                   </span>
                   <p className="text-sm font-bold text-gray-900">
                     Fecha de intención: {seleccionada.fechaIntencion || "Sin especificar"}
@@ -205,10 +266,6 @@ export default function IntencionPage({
                     declaracionProducto={String(calidadSeleccionada?.declaracionProducto ?? (seleccionada as any).declaracionProducto ?? "")}
                     documentos={seleccionada.documentos ?? []}
                     fotos={seleccionada.fotos ?? []}
-                    pesoTotalKg={seleccionada.productos.reduce(
-                      (total, producto) => total + (Number(producto.pesoEstimadoKg) || 0),
-                      0
-                    )}
                     logistica={seleccionada.logistica}
                     catalogosLogistica={catalogs}
                   />

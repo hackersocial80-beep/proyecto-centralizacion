@@ -51,16 +51,10 @@ export default function GridDonaciones({ donaciones, onDetalle }: Props) {
                 Donante
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                Productos
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                 Fecha intencion
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                 Canal
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                Tipo producto
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                 Estado actual
@@ -75,15 +69,6 @@ export default function GridDonaciones({ donaciones, onDetalle }: Props) {
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
             {donaciones.map((d) => {
-              const tipos = Array.from(
-                new Set(d.productos.map((p) => p.tipoProducto))
-              ).join(", ");
-              const productosTxt =
-                d.productos.length > 0
-                  ? d.productos
-                      .map((p) => `${p.producto} (${p.cantidad} ${p.unidad})`)
-                      .join(" - ")
-                  : "Sin productos";
               return (
                 <tr key={d.id} className="transition-colors hover:bg-gray-50">
                   <td className="px-4 py-3 font-mono text-xs font-semibold text-gray-900">
@@ -93,15 +78,9 @@ export default function GridDonaciones({ donaciones, onDetalle }: Props) {
                     {d.donante}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">
-                    <span className="line-clamp-2 max-w-[280px]">
-                      {productosTxt}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
                     {formatDate(d.fechaIntencion)}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700">{d.canal}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{tipos || "-"}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${

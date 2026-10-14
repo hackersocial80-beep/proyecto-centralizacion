@@ -144,6 +144,7 @@ export default function DetalleDonacion({ donacion, onCerrar }: Props) {
           </section>
 
           {/* Datos del producto */}
+          {false && (
           <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h3 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
               <Package className="h-4 w-4 text-[#5cb89a]" />
@@ -211,6 +212,7 @@ export default function DetalleDonacion({ donacion, onCerrar }: Props) {
               </table>
             </div>
           </section>
+          )}
 
           {/* Organizacion asignada */}
           <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

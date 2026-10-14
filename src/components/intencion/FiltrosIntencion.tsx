@@ -1,20 +1,25 @@
 import { Filter, RotateCcw } from "lucide-react";
 import {
-  CANALES,
   FILTROS_VACIOS,
   RESPONSABLES,
-  TIPOS_INTENCION,
   type FiltrosIntencion,
 } from "../../types/intencion";
+import { getLocalDateISO } from "../../utils/date";
 
 interface Props {
   filtros: FiltrosIntencion;
+  origins: Array<{ id: string; name: string }>;
+  suppliers: Array<{ id: string; name: string }>;
+  intentionTypes: Array<{ id: string; name: string }>;
   onChange: (f: FiltrosIntencion) => void;
   onNuevaIntencion: () => void;
 }
 
 export default function FiltrosIntencionBar({
   filtros,
+  origins,
+  suppliers,
+  intentionTypes,
   onChange,
   onNuevaIntencion,
 }: Props) {
@@ -54,13 +59,18 @@ export default function FiltrosIntencionBar({
           <label className="mb-1 block text-xs font-medium text-gray-600">
             Filtrar donante
           </label>
-          <input
-            type="text"
+          <select
             value={filtros.donante}
             onChange={(e) => setField("donante", e.target.value)}
-            placeholder="Ej. Alicorp"
             className={inputBase}
-          />
+          >
+            <option value="">Todos</option>
+            {suppliers.map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -94,15 +104,13 @@ export default function FiltrosIntencionBar({
           </label>
           <select
             value={filtros.canal}
-            onChange={(e) =>
-              setField("canal", e.target.value as FiltrosIntencion["canal"])
-            }
+            onChange={(e) => setField("canal", e.target.value)}
             className={inputBase}
           >
             <option value="">Todos</option>
-            {CANALES.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            {origins.map((origin) => (
+              <option key={origin.id} value={origin.id}>
+                {origin.name}
               </option>
             ))}
           </select>
@@ -142,9 +150,9 @@ export default function FiltrosIntencionBar({
               className={inputBase}
             >
               <option value="">Todos</option>
-              {TIPOS_INTENCION.map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              {intentionTypes.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
                 </option>
               ))}
             </select>

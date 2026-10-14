@@ -31,7 +31,6 @@ interface Props {
   declaracionProducto: string;
   documentos: DocumentoAdjunto[];
   fotos: FotoAdjunta[];
-  pesoTotalKg?: number;
   logistica?: LogisticaIntencion;
   catalogosLogistica?: {
     tipoLugar: Array<{ id: string; name: string }>;
@@ -73,7 +72,6 @@ export default function DetalleIntencion({
   declaracionProducto,
   documentos,
   fotos,
-  pesoTotalKg = 0,
   logistica,
   catalogosLogistica,
   editable,
@@ -84,6 +82,7 @@ export default function DetalleIntencion({
   onRemoveFoto,
 }: Props) {
   const [mapaAbierto, setMapaAbierto] = useState(false);
+  const [tabActiva, setTabActiva] = useState<"calidad" | "logistica">("calidad");
   const catalogLabel = (items: Array<{ id: string; name: string }> = [], value?: string) =>
     items.find((item) => item.id === value || item.name === value)?.name || value || "Sin especificar";
   const requisitosLabels: Record<string, string> = {
@@ -108,10 +107,29 @@ export default function DetalleIntencion({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Peso total estimado de productos</p>
-        <p className="mt-1 text-2xl font-bold text-emerald-900">{pesoTotalKg.toLocaleString("es-PE", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} kg</p>
-      </div>
+      {logistica && (
+        <div className="flex border-b border-gray-200" role="tablist" aria-label="Secciones del detalle de intención">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tabActiva === "calidad"}
+            onClick={() => setTabActiva("calidad")}
+            className={`border-b-2 px-4 py-2.5 text-sm font-semibold ${tabActiva === "calidad" ? "border-[#5cb89a] text-[#32876d]" : "border-transparent text-gray-500 hover:text-gray-800"}`}
+          >
+            Calidad
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tabActiva === "logistica"}
+            onClick={() => setTabActiva("logistica")}
+            className={`border-b-2 px-4 py-2.5 text-sm font-semibold ${tabActiva === "logistica" ? "border-[#5cb89a] text-[#32876d]" : "border-transparent text-gray-500 hover:text-gray-800"}`}
+          >
+            Logística y recojo
+          </button>
+        </div>
+      )}
+      {(!logistica || tabActiva === "calidad") && <>
       <section className="rounded-xl border border-gray-200 bg-white p-5">
         <h3 className="mb-4 text-base font-bold text-gray-900">Calidad e información de la intención</h3>
       <div className="grid gap-5 md:grid-cols-2">
@@ -502,7 +520,9 @@ export default function DetalleIntencion({
         )}
       </div>
 
-      {logistica && (
+      </>}
+
+      {logistica && tabActiva === "logistica" && (
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h3 className="mb-4 text-base font-bold text-gray-900">Logística y recojo</h3>
           <div className="grid gap-5 md:grid-cols-2">

@@ -2,6 +2,7 @@ import { useState, useEffect, type ChangeEvent, type FormEvent, useRef } from "r
 import { Save, Trash2, Loader2, FileText, Package, CheckCircle, Truck, Upload, Download, MapPin } from "lucide-react";
 import ProductosGrid from "../components/intencion/ProductosGrid";
 import UbigeoSelector from "../components/intencion/UbigeoSelector";
+import { getLocalDateISO } from "../utils/date";
 import {
   type CompromisoIdoneidadFlags,
   COMPROMISO_IDONEIDAD_INICIAL,
@@ -102,16 +103,6 @@ interface LogisticaForm {
   observacionesAcceso: string;
 }
 
-const REQUISITOS_INGRESO = [
-  { id: "1", label: "DNI vigente" },
-  { id: "2", label: "Carnet de sanidad" },
-  { id: "3", label: "Autorización del donante" },
-  { id: "4", label: "Uso obligatorio de EPP" },
-  { id: "5", label: "Seguro SCTR" },
-  { id: "6", label: "Inducción de seguridad" },
-  { id: "7", label: "Vehículo con sello de fumigación" },
-  { id: "8", label: "Otros requisitos" },
-];
 // Cambiar a false para volver a mostrar el tab de productos.
 const HIDE_PRODUCTS_TAB = true;
 
@@ -200,7 +191,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   const [supplierId, setSupplierId] = useState("");
   const [contacto, setContacto] = useState("");
   const [fechaIntencion, setFechaIntencion] = useState(
-    new Date().toISOString().slice(0, 10)
+    getLocalDateISO()
   );
   const [canal, setCanal] = useState<string>("");
   useEffect(() => {
@@ -220,7 +211,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     motivoDonacion: "",
     compromisoIdoneidad: { ...COMPROMISO_IDONEIDAD_INICIAL },
     condicionAlmacenamiento: "",
-    fechaEstimadaEntrega: "",
+    fechaEstimadaEntrega: getLocalDateISO(),
     descripcionGeneralDonacion: "",
     incluyeProductosSensibles: "No",
     recomendacionesConsumo: "",
@@ -252,8 +243,8 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     numeroContacto: "",
     requisitosIngreso: [],
 
-    fechaDesde: "",
-    fechaHasta: "",
+    fechaDesde: getLocalDateISO(),
+    fechaHasta: getLocalDateISO(),
     horarioDisponible: "",
     tiempoEstimadoCarga: "",
 
@@ -566,7 +557,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
         responsable: responsable.trim(),
         tipoIntencion,
 
-        estado: "Pendiente",
+        estado: "",
 
         // MUCHOS PRODUCTOS
         productos: productosValidos,
@@ -1380,17 +1371,20 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                   <p className="mt-1 text-sm text-gray-500">Selecciona todos los que apliquen.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {REQUISITOS_INGRESO.map((requisito) => {
+                  {catalogs.requisitosIngreso.map((requisito) => {
                     const seleccionado = logisticaForm.requisitosIngreso.includes(requisito.id);
                     return (
                       <label key={requisito.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition-colors ${seleccionado ? "border-[#5cb89a] bg-[#5cb89a]/10 text-gray-900" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}>
                         <input type="checkbox" checked={seleccionado} onChange={(event) => setLogisticaField("requisitosIngreso", event.target.checked ? [...logisticaForm.requisitosIngreso, requisito.id] : logisticaForm.requisitosIngreso.filter((id) => id !== requisito.id))} className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]" />
-                        <span>{requisito.label}</span>
+                        <span>{requisito.name}</span>
                       </label>
                     );
                   })}
+                  {catalogs.requisitosIngreso.length === 0 && (
+                    <p className="col-span-full text-sm text-gray-500">No hay requisitos disponibles en el catálogo.</p>
+                  )}
                 </div>
-                {logisticaForm.requisitosIngreso.includes("8") && (
+                {catalogs.requisitosIngreso.some((requisito) => normalizeHeader(requisito.name).includes("otro") && logisticaForm.requisitosIngreso.includes(requisito.id)) && (
                   <div className="mt-4 max-w-xl">
                     <Input label="Detalle de otros requisitos" value={logisticaForm.observacionesAcceso} onChange={(event) => setLogisticaField("observacionesAcceso", event.target.value)} placeholder="Especifica los requisitos adicionales" />
                   </div>

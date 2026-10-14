@@ -149,7 +149,7 @@ export async function saveIntencion(
         };
   // Convertimos el modelo del formulario al contrato POST /api/Intents.
   const apiPayload = {
-    statusCode: "1",
+    statusCode: "",
     supplierId: data.supplierId || import.meta.env.VITE_DEFAULT_SUPPLIER_ID || "SUP-001",
     supplierName: data.donante,
     contacto: data.contacto || null,
@@ -219,9 +219,10 @@ export async function saveIntencion(
         dayOfWeek: DAY_OF_WEEK[day],
       })),
       donationPickupRequeriments: logistics.requisitosIngreso
-        .map((requirement) => Number(requirement))
-        .filter(Number.isFinite)
-        .map((requirementId) => ({ requirementId })),
+        .map((requirement) => {
+          const numericId = Number(requirement);
+          return { requirementId: Number.isFinite(numericId) ? numericId : requirement };
+        }),
     },
   };
 
@@ -270,7 +271,7 @@ export async function saveIntencion(
       ...data,
       id: createdIntentId ?? result?.id ?? result?.intentId ?? data.id ?? crypto.randomUUID(),
       codigo: result?.codigo ?? result?.code ?? data.codigo,
-      estado: "Capturada",
+      estado: "",
       createdAt: now,
       calidad: {
         motivoDonacion: quality.motivoDonacion,
@@ -315,15 +316,125 @@ export async function saveIntencion(
   }
 }
 
-export async function getIntenciones() {
-  return getStoredIntenciones();
+const readField = (source: any, ...names: string[]): any => {
+  if (!source || typeof source !== "object") return undefined;
+  const wanted = new Set(names.map((name) => name.toLowerCase()));
+  const entry = Object.entries(source).find(([key]) => wanted.has(key.toLowerCase()));
+  return entry?.[1];
+};
+
+const unwrapIntentList = (payload: any): any[] => {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  for (const key of ["data", "items", "intents", "intentions", "results", "result", "records"])
+    if (key in payload) {
+      const found = unwrapIntentList(payload[key]);
+      if (found.length || Array.isArray(payload[key])) return found;
+    }
+  return [];
+};
+
+const displayCatalogValue = (value: any, catalogs: ReturnType<typeof catalogStore.getState>, collection: "canales" | "origins" | "tiposIntencion" | "proveedores") => {
+  if (value === null || value === undefined) return "";
+  const id = String(value);
+  const match = catalogs[collection].find((item) => item.id.toLowerCase() === id.toLowerCase());
+  return match?.name ?? id;
+};
+
+const mapApiIntent = (raw: any, index: number): Intencion => {
+  const catalogs = catalogStore.getState();
+  const logistic = readField(raw, "infoLogistic", "logistics", "logistica") ?? {};
+  const quality = readField(raw, "quality", "qualityInfo") ?? raw;
+  const rawId = readField(raw, "intentId", "intentionId", "id", "uuid", "guid");
+  const channelId = readField(raw, "channelId", "channel", "canal");
+  const supplierId = readField(raw, "supplierId", "supplier", "donorId");
+  const intentTypeId = readField(raw, "intentTypeId", "intentionTypeId", "intentType", "tipoIntencion");
+  const date = readField(raw, "fechaIntencion", "fecha", "intentDate", "intentionDate", "createdAt", "date");
+  const status = readField(raw, "status", "statusName", "statusCode", "estado");
+  const dateText = date ? String(date).slice(0, 10) : "";
+  const flags = {
+    envase_integro: Boolean(readField(quality, "packagingIntact", "envase_integro")),
+    sin_deterioro: Boolean(readField(quality, "noSignsOfDeterioration", "sin_deterioro")),
+    conservacion: Boolean(readField(quality, "storedAsRecommended", "conservacion")),
+  };
+  const dayNames: Record<number, any> = { 1: "Lunes", 2: "Martes", 3: "Miércoles", 4: "Jueves", 5: "Viernes", 6: "Sábado", 7: "Domingo" };
+  const daysRaw = readField(logistic, "donationPickupDays", "diasAtencion");
+  const pickupDays = Array.isArray(daysRaw) ? daysRaw.map((item: any) => dayNames[Number(readField(item, "dayOfWeek") ?? item)]).filter(Boolean) : [];
+  const requirementsRaw = readField(logistic, "donationPickupRequeriments", "donationPickupRequirements", "requisitosIngreso");
+  const requirements = Array.isArray(requirementsRaw) ? requirementsRaw.map((item: any) => String(readField(item, "requirementId", "id") ?? item)) : [];
+  const estado = status == null ? "" : String(status);
+  return {
+    id: String(rawId ?? `api-${index}`),
+    codigo: String(readField(raw, "code", "codigo", "intentCode", "intentNumber") ?? `INT-${String(rawId ?? index)}`),
+    donante: String(readField(raw, "supplierName", "donorName", "donante") ?? displayCatalogValue(supplierId, catalogs, "proveedores")),
+    contacto: String(readField(raw, "contacto", "contact", "contactName", "email", "phone") ?? ""),
+    fechaIntencion: dateText,
+    canal: (displayCatalogValue(channelId, catalogs, "canales") !== String(channelId ?? "")
+      ? displayCatalogValue(channelId, catalogs, "canales")
+      : catalogs.origins.find((item) => item.id.toLowerCase() === String(channelId ?? "").toLowerCase())?.name ?? String(channelId ?? "")) as any,
+    responsable: String(readField(raw, "responsable", "responsible", "createdBy") ?? ""),
+    tipoIntencion: displayCatalogValue(intentTypeId, catalogs, "tiposIntencion") as any,
+    estado: estado as any,
+    productos: [],
+    calidad: {
+      motivoDonacion: String(readField(quality, "donationReasonName", "donationReasonId", "motivoDonacion") ?? "") as any,
+      compromisoIdoneidad: flags,
+      condicionAlmacenamiento: String(readField(quality, "storageConditionName", "storageConditionId", "condicionAlmacenamiento") ?? "") as any,
+      fechaEstimadaEntrega: String(readField(quality, "estimatedDeliveryDate", "fechaEstimadaEntrega") ?? "").slice(0, 10),
+      descripcionGeneralDonacion: String(readField(quality, "donationDescription", "descripcionGeneralDonacion") ?? ""),
+      incluyeProductosSensibles: String(readField(quality, "productSensibily", "incluyeProductosSensibles") ?? "No") as any,
+      recomendacionesConsumo: String(readField(quality, "consumptionRecommendation", "recomendacionesConsumo") ?? ""),
+      condicionProducto: String(readField(quality, "productConditionName", "productConditionId", "condicionProducto") ?? ""),
+      declaracionProducto: Boolean(readField(quality, "productDeclaration", "declaracionProducto")),
+    },
+    logistica: {
+      tipoLugar: String(readField(logistic, "placeTypeName", "placeTypeId", "tipoLugar") ?? "") as any,
+      lugar: String(readField(logistic, "placeName", "lugar") ?? ""),
+      contactoPlanta: String(readField(logistic, "contactName", "contactoPlanta") ?? ""),
+      direccion: String(readField(logistic, "direccion", "address") ?? ""), referencia: String(readField(logistic, "referencia", "reference") ?? ""),
+      distrito: String(readField(logistic, "districtName", "districtCode", "distrito") ?? "") as any,
+      provincia: String(readField(logistic, "provinceName", "provinceCode", "provincia") ?? "") as any,
+      departamento: String(readField(logistic, "departmentName", "departmentCode", "departamento") ?? "") as any,
+      codigoPostal: String(readField(logistic, "postalCode", "codigoPostal") ?? ""),
+      tipoAcceso: String(readField(logistic, "accessTypeName", "accesTypeId", "accessTypeId", "tipoAcceso") ?? "") as any,
+      horarioInicio: String(readField(logistic, "startTime", "horarioInicio") ?? ""), horarioFinal: String(readField(logistic, "endTime", "horarioFinal") ?? ""),
+      diasAtencion: pickupDays,
+      requiereAutorizacion: readField(logistic, "requiresAuthorization", "requiereAutorizacion") ? "Si" : "No",
+      anticipacion: String(readField(logistic, "leadTimeName", "anticipationTimeId", "anticipacion") ?? "") as any,
+      contactoAutorizacion: String(readField(logistic, "authorizationContact", "contactoAutorizacion") ?? ""),
+      numeroContacto: String(readField(logistic, "contactNumber", "numeroContacto") ?? ""), requisitosIngreso: requirements,
+      fechaDesde: String(readField(logistic, "starDate", "startDate", "fechaDesde") ?? "").slice(0, 10),
+      fechaHasta: String(readField(logistic, "endDate", "fechaHasta") ?? "").slice(0, 10),
+      horarioDisponible: String(readField(logistic, "permitedHours", "permittedHours", "horarioDisponible") ?? ""),
+      tiempoEstimadoCarga: String(readField(logistic, "estimatedLoadingMinutes", "tiempoEstimadoCarga") ?? ""),
+      latitud: String(readField(logistic, "latitude", "latitud") ?? ""), longitud: String(readField(logistic, "longitude", "longitud") ?? ""), observacionesAcceso: "",
+    },
+    documentos: [], fotos: [], createdAt: String(readField(raw, "createdAt", "createdDate") ?? ""),
+  };
+};
+
+export async function getIntenciones(): Promise<Intencion[]> {
+  const token = getToken();
+  const response = await axios.get(`${API_BASE_URL}/Intents/GetIntents`, {
+    headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    withCredentials: true,
+  });
+  const rows = unwrapIntentList(response.data).map(mapApiIntent);
+  // Keep local test fixtures available in every workflow alongside API data.
+  // Local entries win on duplicate IDs so simulated status changes persist.
+  const merged = new Map<string, Intencion>();
+  rows.forEach((item) => merged.set(item.id, item));
+  getStoredIntenciones().forEach((item) => merged.set(item.id, item));
+  return [...merged.values()];
 }
 
 export async function getIntencionById(id: string) {
   const data = getStoredIntenciones();
   const item = data.find((i) => i.id === id);
-  if (!item) throw new Error("No se pudo obtener la intención");
-  return item;
+  if (item) return item;
+  const apiItem = (await getIntenciones()).find((i) => i.id === id);
+  if (!apiItem) throw new Error("No se pudo obtener la intención");
+  return apiItem;
 }
 
 export async function updateIntencionStatus(id: string, status: number | string) {

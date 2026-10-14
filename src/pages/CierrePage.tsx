@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getLocalDateISO } from "../utils/date";
 import {
   ArrowLeft,
   FileText,
@@ -240,11 +241,11 @@ export default function CierrePage({ onVolver }: Props) {
 
                 <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-emerald-500 before:via-gray-200 before:to-gray-200">
                   {[
-                    { step: "Calidad", status: "Aprobado", resp: "Ana Torres", date: "2026-09-07 10:00", color: "text-emerald-600" },
-                    { step: "Logística", status: "Aprobado", resp: "Carlos Mendoza", date: "2026-09-08 14:30", color: "text-emerald-600" },
-                    { step: "Asignación", status: "Comedor Popular San Juan", resp: "Jorge Ramirez", date: "2026-09-09 09:00", color: "text-blue-600" },
-                    { step: "Coordinación", status: "Confirmado", resp: "Lucia Fernandez", date: "2026-09-15 11:00", color: "text-emerald-600" },
-                    { step: "Cierre", status: "Finalizado", resp: "Admin Cierre", date: "2026-09-16 16:00", color: "text-emerald-600" },
+                    { step: "Calidad", status: "Aprobado", resp: "Ana Torres", date: `${getLocalDateISO()} 10:00`, color: "text-emerald-600" },
+                    { step: "Logística", status: "Aprobado", resp: "Carlos Mendoza", date: `${getLocalDateISO()} 14:30`, color: "text-emerald-600" },
+                    { step: "Asignación", status: "Comedor Popular San Juan", resp: "Jorge Ramirez", date: `${getLocalDateISO()} 09:00`, color: "text-blue-600" },
+                    { step: "Coordinación", status: "Confirmado", resp: "Lucia Fernandez", date: `${getLocalDateISO()} 11:00`, color: "text-emerald-600" },
+                    { step: "Cierre", status: "Finalizado", resp: "Admin Cierre", date: `${getLocalDateISO()} 16:00`, color: "text-emerald-600" },
                   ].map((item, i) => (
                     <div key={i} className="relative pl-10 group">
                       <div className={`absolute left-0 top-1 h-10 w-10 rounded-full border-4 border-white shadow-sm flex items-center justify-center transition-colors ${i === 4 ? "bg-emerald-500" : "bg-gray-200 group-hover:bg-emerald-100"}`}>
@@ -297,8 +298,8 @@ export default function CierrePage({ onVolver }: Props) {
                 </div>
                 <div className="space-y-3">
                   {[
-                    { name: "Acta de Entrega Final", desc: "Documento de conformidad de recepción", type: "PDF", size: "150 KB", date: "2026-09-16", status: "Cerrado" },
-                    { name: "Guía de Remisión Ejecutada", desc: "Constancia de traslado finalizado", type: "PDF", size: "90 KB", date: "2026-09-16", status: "Cerrado" },
+                    { name: "Acta de Entrega Final", desc: "Documento de conformidad de recepción", type: "PDF", size: "150 KB", date: getLocalDateISO(), status: "Cerrado" },
+                    { name: "Guía de Remisión Ejecutada", desc: "Constancia de traslado finalizado", type: "PDF", size: "90 KB", date: getLocalDateISO(), status: "Cerrado" },
                   ].map((doc, i) => (
                     <div key={i} className="group flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-emerald-500 transition-all cursor-pointer">
                       <div className="flex items-center gap-3">
@@ -355,7 +356,7 @@ export default function CierrePage({ onVolver }: Props) {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <InfoField label="Nombre" value="Admin Sistema BAP" />
                   <InfoField label="Cargo" value="Coordinador General" />
-                  <InfoField label="Cierre" value="2026-09-16 16:00" />
+                  <InfoField label="Cierre" value={`${getLocalDateISO()} 16:00`} />
                 </div>
               </section>
 

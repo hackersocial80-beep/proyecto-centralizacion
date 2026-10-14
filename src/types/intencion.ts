@@ -1,6 +1,5 @@
 // Tipos y constantes del modulo de Intencion
 // Sistema de centralizacion - Banco de Alimentos Peru
-
 export type Canal =
   | "WhatsApp"
   | "Correo electronico"
@@ -16,6 +15,7 @@ export type TipoIntencion =
   | "Convenio";
 
 export type EstadoIntencion =
+  | ""
   | "Pendiente"
   | "En evaluacion"
   | "Aprobada"
@@ -237,9 +237,9 @@ export interface FiltrosIntencion {
   donante: string;
   contacto: string;
   fechaIntencion: string;
-  canal: Canal | "";
+  canal: string;
   responsable: string;
-  tipoIntencion: TipoIntencion | "";
+  tipoIntencion: string;
 }
 
 // Catálogos (luego pueden venir de la API)

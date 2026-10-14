@@ -3,6 +3,7 @@
 // modo de recojo, ubicacion, resumen, aprobacion y condiciones del producto.
 
 import type { Donacion } from "./donacion";
+import { getLocalDateISO } from "../utils/date";
 
 // Modos de recojo disponibles
 export type ModoRecojo =
@@ -140,7 +141,7 @@ export const APROBACION_LOGISTICA_VACIA: Omit<
   aprobacion: {
     areaResponsable: "Logistica",
     responsableNombre: "",
-    fechaAprobacion: new Date().toISOString().slice(0, 10),
+    fechaAprobacion: getLocalDateISO(),
     estadosSeleccionados: [],
   },
   observacionesLogistica: "",

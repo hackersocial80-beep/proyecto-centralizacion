@@ -171,12 +171,12 @@ export interface Donacion extends Intencion {
 // Filtros del modulo Donacion
 export interface FiltrosDonacion {
   busqueda: string; // codigo, donante o producto
-  canal: Canal | "";
+  canal: string;
   estado: EstadoDonacion | "";
   fechaIntencion: string;
-  origen: Origen | "";
-  tipoProceso: TipoProceso | "";
-  tipoIntencion: TipoIntencion | "";
+  origen: string;
+  tipoProceso: string;
+  tipoIntencion: string;
   responsable: string;
 }
 

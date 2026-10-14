@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getLocalDateISO } from "../../utils/date";
 import {
   Building2,
   CheckCircle2,
@@ -51,12 +52,19 @@ const STRATEGIES = {
 };
 
 const STEPS = [
-  { id: 'resumen', label: 'Resumen', icon: InfoIcon },
-  { id: 'productos', label: 'Productos', icon: Package },
+  { id: 'resumen', label: 'Información Logística', icon: InfoIcon },
   { id: 'estrategia', label: 'Estrategia', icon: Truck },
   { id: 'resumen_log', label: 'Resumen Log.', icon: ClipboardList },
   { id: 'aprobacion', label: 'Aprobación', icon: CheckCircle },
 ];
+
+const getPickupMapUrl = (logistica: any) => {
+  const lat = logistica?.latitud;
+  const lon = logistica?.longitud;
+  const hasCoordinates = lat !== undefined && lat !== null && String(lat).trim() !== "" && lon !== undefined && lon !== null && String(lon).trim() !== "" && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon));
+  const query = hasCoordinates ? `${lat},${lon}` : logistica?.direccion;
+  return query ? `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : "";
+};
 
 export default function LogisticaPage({ onVolver }: Props) {
   const [intentions, setIntentions] = useState<any[]>([]);
@@ -64,6 +72,8 @@ export default function LogisticaPage({ onVolver }: Props) {
   const [intention, setIntention] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const pickupMapUrl = getPickupMapUrl(intention?.logistica);
 
   // State for Editable Data
   const [editedProducts, setEditedProducts] = useState<any[]>([]);
@@ -211,7 +221,7 @@ export default function LogisticaPage({ onVolver }: Props) {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                       <Info label="Código" value={intention.codigo} mono />
                       <Info label="Donante" value={intention.donante} />
-                      <Info label="Fecha" value={intention.fecha} />
+                      <Info label="Fecha de intención" value={intention.fechaIntencion || intention.fecha} />
                       <Info label="Responsable" value={intention.responsable} />
                     </div>
                     <div className="p-4 rounded-lg bg-gray-50 border border-gray-100 space-y-4">
@@ -224,13 +234,18 @@ export default function LogisticaPage({ onVolver }: Props) {
                         <DetailField label="Distrito" value={intention.logistica?.distrito} />
                         <DetailField label="Provincia" value={intention.logistica?.provincia} />
                         <DetailField label="Departamento" value={intention.logistica?.departamento} />
-                        <DetailField label="Planta/Local" value={intention.logistica?.planta} />
+                        <DetailField label="Planta/Local" value={intention.logistica?.lugar || intention.logistica?.planta} />
+                      </div>
+                      <div className="flex justify-end">
+                        <button onClick={() => setIsMapOpen(true)} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                          <ExternalLink className="h-3 w-3" /> Ver en Mapa
+                        </button>
                       </div>
                     </div>
                   </section>
                 )}
 
-                {currentStep === 1 && (
+                {false && currentStep === 1 && (
                   <div className="space-y-6">
                     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                       <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
@@ -279,7 +294,7 @@ export default function LogisticaPage({ onVolver }: Props) {
                   </div>
                 )}
 
-                {currentStep === 2 && (
+                {currentStep === 1 && (
                   <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <Truck className="h-4 w-4 text-[#5cb89a]" /> Definir Estrategia Logística
@@ -342,7 +357,7 @@ export default function LogisticaPage({ onVolver }: Props) {
                   </section>
                 )}
 
-                {currentStep === 3 && (
+                {currentStep === 2 && (
                   <div className="space-y-6">
                     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                       <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
@@ -355,7 +370,7 @@ export default function LogisticaPage({ onVolver }: Props) {
                         <Info label="Temperatura" value="Ambiente (15-25°C)" />
                         <Info label="Urgencia" value="Media" />
                         <Info label="Tiempo Disponible" value="48 horas" />
-                        <Info label="Fecha Límite Sugerida" value="2026-09-12" />
+                        <Info label="Fecha Límite Sugerida" value={getLocalDateISO()} />
                       </div>
                     </section>
                     <section className="rounded-xl border border-gray-200 bg-[#5cb89a]/10 p-6 shadow-sm border-[#5cb89a]/30">
@@ -369,7 +384,7 @@ export default function LogisticaPage({ onVolver }: Props) {
                   </div>
                 )}
 
-                {currentStep === 4 && (
+                {currentStep === 3 && (
                   <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <CheckCircle className="h-4 w-4 text-[#5cb89a]" /> Aprobación de Logística
@@ -443,6 +458,19 @@ export default function LogisticaPage({ onVolver }: Props) {
           )}
         </div>
       </div>
+      {isMapOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="max-w-4xl w-full rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900">Ubicación de Recojo</h3>
+              <button onClick={() => setIsMapOpen(false)} className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-200 rounded">Cerrar</button>
+            </div>
+            <div className="h-[500px] w-full bg-gray-100">
+              {pickupMapUrl ? <iframe src={pickupMapUrl} title="Ubicación de recojo" className="h-full w-full border-0" allowFullScreen /> : <div className="h-full w-full flex items-center justify-center text-gray-500">No hay coordenadas ni dirección para mostrar</div>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

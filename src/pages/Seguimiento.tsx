@@ -7,6 +7,7 @@ import LogisticaPage from "../components/seguimiento/LogisticaPage";
 import DistribucionPage from "../pages/DistribucionPage";
 import CoordinacionPage from "../pages/CoordinacionPage";
 import CierrePage from "../pages/CierrePage";
+import { getLocalDateISO } from "../utils/date";
 import FiltrosSeguimiento, {
   FILTROS_SEGUIMIENTO_VACIOS,
   type FiltrosSeguimiento as Filtros,
@@ -68,7 +69,7 @@ export default function SeguimientoPage({ initial = "seguimiento" }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `seguimiento-organizaciones-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `seguimiento-organizaciones-${getLocalDateISO()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

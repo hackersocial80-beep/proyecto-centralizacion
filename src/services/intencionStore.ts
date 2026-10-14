@@ -1,6 +1,7 @@
 // Store ligero (en memoria) para intenciones. Reemplazable por API real.
 import { useSyncExternalStore } from "react";
 import type { Intencion } from "../types/intencion";
+import { getLocalDateISO } from "../utils/date";
 
 const seed: Intencion[] = [
   {
@@ -8,8 +9,8 @@ const seed: Intencion[] = [
     codigo: "INT-2026-0001",
     donante: "Alicorp S.A.",
     contacto: "ventas@alicorp.com",
-    fechaIntencion: "2026-08-08",
-    canal: "Correo electronico",
+    fechaIntencion: getLocalDateISO(),
+    canal: "Correo",
     responsable: "Maria Lopez",
     tipoIntencion: "Donacion",
     estado: "Pendiente",
@@ -21,7 +22,7 @@ const seed: Intencion[] = [
         conservacion: true,
       },
       condicionAlmacenamiento: "Temperatura ambiente",
-      fechaEstimadaEntrega: "2026-10-15",
+      fechaEstimadaEntrega: getLocalDateISO(),
       descripcionGeneralDonacion: "Datos ficticios para prueba de visualización.",
       incluyeProductosSensibles: "No",
       recomendacionesConsumo: "Sin recomendaciones de prueba.",
@@ -71,8 +72,8 @@ const seed: Intencion[] = [
       contactoAutorizacion: "Responsable de prueba Alicorp",
       numeroContacto: "999000001",
       requisitosIngreso: ["1", "4", "5"],
-      fechaDesde: "2026-10-12",
-      fechaHasta: "2026-10-30",
+      fechaDesde: getLocalDateISO(),
+      fechaHasta: getLocalDateISO(),
       horarioDisponible: "09:00 - 16:00",
       tiempoEstimadoCarga: "45",
       latitud: "-12.0464",
@@ -81,14 +82,14 @@ const seed: Intencion[] = [
     },
     documentos: [],
     fotos: [],
-    createdAt: "2026-08-08T10:30:00Z",
+    createdAt: new Date().toISOString(),
   },
   {
     id: "2",
     codigo: "INT-2026-0002",
     donante: "Gloria S.A.",
     contacto: "+51 999 888 777",
-    fechaIntencion: "2026-08-05",
+    fechaIntencion: getLocalDateISO(),
     canal: "WhatsApp",
     responsable: "Carlos Mendoza",
     tipoIntencion: "Donacion",
@@ -101,7 +102,7 @@ const seed: Intencion[] = [
         conservacion: false,
       },
       condicionAlmacenamiento: "Temperatura ambiente",
-      fechaEstimadaEntrega: "2026-10-18",
+      fechaEstimadaEntrega: getLocalDateISO(),
       descripcionGeneralDonacion: "Datos ficticios para prueba de visualización.",
       incluyeProductosSensibles: "No",
       recomendacionesConsumo: "Sin recomendaciones de prueba.",
@@ -140,8 +141,8 @@ const seed: Intencion[] = [
       contactoAutorizacion: "Responsable de prueba Gloria",
       numeroContacto: "999000002",
       requisitosIngreso: ["1", "3", "6"],
-      fechaDesde: "2026-10-13",
-      fechaHasta: "2026-10-31",
+      fechaDesde: getLocalDateISO(),
+      fechaHasta: getLocalDateISO(),
       horarioDisponible: "08:30 - 15:30",
       tiempoEstimadoCarga: "60",
       latitud: "-12.0500",
@@ -150,7 +151,7 @@ const seed: Intencion[] = [
     },
     documentos: [],
     fotos: [],
-    createdAt: "2026-08-05T14:15:00Z",
+    createdAt: new Date().toISOString(),
   },
 ];
 
@@ -170,6 +171,10 @@ export const intencionStore = {
   subscribe,
   getSnapshot,
   getAll: () => state,
+  setAll: (items: Intencion[]) => {
+    state = items;
+    emit();
+  },
   add: (i: Intencion) => {
     state = [i, ...state];
     emit();

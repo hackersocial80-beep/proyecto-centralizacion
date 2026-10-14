@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ResumenDonacion from "../components/donacion/ResumenDonacion";
 import FiltrosDonacionBar from "../components/donacion/FiltrosDonacion";
 import GridDonaciones from "../components/donacion/GridDonaciones";
@@ -12,6 +12,23 @@ import {
   resumenDonaciones,
   useDonaciones,
 } from "../services/donacionStore";
+import { intencionStore } from "../services/intencionStore";
+import { getIntenciones } from "../services/intencionService";
+import { catalogStore, useCatalogs } from "../services/catalogStore";
+import { getLocalDateISO } from "../utils/date";
+
+const normalizeCatalogValue = (value: string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+
+const matchesCatalog = (
+  selectedId: string,
+  items: Array<{ id: string; name: string }>,
+  value: string
+) => {
+  if (!selectedId) return true;
+  const selected = items.find((item) => item.id === selectedId);
+  return value === selectedId || normalizeCatalogValue(value) === normalizeCatalogValue(selected?.name ?? "");
+};
 
 interface Props {
   onNuevaIntencion: () => void;
@@ -21,26 +38,36 @@ export default function DonacionPage({
   onNuevaIntencion,
 }: Props) {
   const donaciones = useDonaciones();
+  const catalogs = useCatalogs();
   const [filtros, setFiltros] = useState<FiltrosDonacion>(
     FILTROS_DONACION_VACIOS
   );
   const [detalleId, setDetalleId] = useState<string | null>(null);
 
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      await catalogStore.loadCatalogs();
+      try {
+        const data = await getIntenciones();
+        if (active) intencionStore.setAll(data);
+      } catch (error) {
+        console.error("Error cargando intenciones para Donaciones:", error);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, []);
+
   const filtradas = useMemo(() => {
     const q = filtros.busqueda.trim().toLowerCase();
     return donaciones.filter((d) => {
-      if (filtros.canal && d.canal !== filtros.canal) return false;
+      if (!matchesCatalog(filtros.canal, catalogs.canales, d.canal)) return false;
       if (filtros.estado && d.estadoDonacion !== filtros.estado) return false;
-      if (
-        filtros.fechaIntencion &&
-        d.fechaIntencion !== filtros.fechaIntencion
-      )
-        return false;
-      if (filtros.origen && d.origen !== filtros.origen) return false;
-      if (filtros.tipoProceso && d.tipoProceso !== filtros.tipoProceso)
-        return false;
-      if (filtros.tipoIntencion && d.tipoIntencion !== filtros.tipoIntencion)
-        return false;
+      if (filtros.fechaIntencion && d.fechaIntencion !== filtros.fechaIntencion) return false;
+      if (!matchesCatalog(filtros.origen, catalogs.procedencias, d.origen)) return false;
+      if (!matchesCatalog(filtros.tipoProceso, catalogs.tiposProceso, d.tipoProceso)) return false;
+      if (!matchesCatalog(filtros.tipoIntencion, catalogs.tiposIntencion, d.tipoIntencion)) return false;
       if (filtros.responsable && d.responsable !== filtros.responsable)
         return false;
       if (q) {
@@ -53,9 +80,9 @@ export default function DonacionPage({
       }
       return true;
     });
-  }, [donaciones, filtros]);
+  }, [donaciones, filtros, catalogs.canales, catalogs.procedencias, catalogs.tiposProceso, catalogs.tiposIntencion]);
 
-  const resumen = useMemo(() => resumenDonaciones(filtradas), [filtradas]);
+  const resumen = useMemo(() => resumenDonaciones(donaciones), [donaciones]);
 
   const exportar = () => {
     const headers = [
@@ -91,7 +118,7 @@ export default function DonacionPage({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `donaciones-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `donaciones-${getLocalDateISO()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -119,6 +146,10 @@ export default function DonacionPage({
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <FiltrosDonacionBar
           filtros={filtros}
+          canales={catalogs.canales}
+          origenes={catalogs.procedencias}
+          tiposProceso={catalogs.tiposProceso}
+          tiposIntencion={catalogs.tiposIntencion}
           onChange={setFiltros}
           onExportar={exportar}
           onNuevaIntencion={onNuevaIntencion}

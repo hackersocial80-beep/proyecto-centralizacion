@@ -6,7 +6,6 @@ import {
   ClipboardList,
   FileText,
   Info as InfoIcon,
-  Package,
   Save,
   ArrowLeft,
   CheckCircle,
@@ -27,6 +26,19 @@ interface Props {
 
 type EvaluationStatus = "pendiente" | "aprobado" | "observaciones" | "rechazado";
 
+const getPickupMapUrl = (logistica: any) => {
+  const lat = logistica?.latitud;
+  const lon = logistica?.longitud;
+  const hasCoordinates = lat !== undefined && lat !== null && String(lat).trim() !== "" && lon !== undefined && lon !== null && String(lon).trim() !== "" && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon));
+  const query = hasCoordinates ? `${lat},${lon}` : logistica?.direccion;
+  return query ? `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : "";
+};
+
+const isPendingQuality = (intent: any) => {
+  const status = String(intent?.estado ?? "").trim().toLowerCase();
+  return status === "" || status === "0" || status === "capturada" || status === "pendiente";
+};
+
 const EVALUATION_ITEMS = [
   { id: "fisico", label: "Estado Físico y Apariencia", desc: "Revisión del estado físico y apariencia del producto" },
   { id: "inocuidad", label: "Inocuidad y Seguridad Alimentaria", desc: "Cumplimiento de criterios de inocuidad" },
@@ -38,7 +50,6 @@ const EVALUATION_ITEMS = [
 
 const STEPS = [
   { id: 'general', label: 'Información General', icon: InfoIcon },
-  { id: 'productos', label: 'Productos y Condiciones', icon: Package },
   { id: 'evidencias', label: 'Evidencias y Documentos', icon: FileText },
   { id: 'evaluacion', label: 'Evaluación Técnica', icon: CheckCircle2 },
   { id: 'veredicto', label: 'Veredicto Final', icon: CheckCircle },
@@ -55,17 +66,19 @@ export default function CalidadPage({ onVolver }: Props) {
   const [evaluations, setEvaluations] = useState<Record<string, EvaluationStatus>>({});
   const [finalResult, setFinalResult] = useState<EvaluationStatus>("pendiente");
   const [generalObs, setGeneralObs] = useState("");
+  const [evaluationObs, setEvaluationObs] = useState("");
   const [docValidation, setDocValidation] = useState<Record<string, boolean>>({});
 
   // Modals
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string, name: string, type: 'image' | 'doc' } | null>(null);
+  const pickupMapUrl = getPickupMapUrl(intention?.logistica);
 
   useEffect(() => {
     async function load() {
       try {
         const data = await getIntenciones();
-        const filtered = data.filter((i: any) => i.estado === 0 || i.estado === "Capturada");
+        const filtered = data.filter(isPendingQuality);
         setIntentions(filtered);
       } catch (e) {
         console.error("Error loading intentions", e);
@@ -83,6 +96,7 @@ export default function CalidadPage({ onVolver }: Props) {
       setEvaluations({});
       setFinalResult("pendiente");
       setGeneralObs("");
+      setEvaluationObs("");
       setDocValidation({});
       setCurrentStep(0);
     } catch (e) {
@@ -116,7 +130,7 @@ export default function CalidadPage({ onVolver }: Props) {
       await updateIntencionStatus(selectedId, 1);
       alert("Intención aprobada por Calidad exitosamente.");
       const data = await getIntenciones();
-      setIntentions(data.filter((i: any) => i.estado === 0 || i.estado === "Capturada"));
+      setIntentions(data.filter(isPendingQuality));
       setIntention(null);
       setSelectedId("");
     } catch (e) {
@@ -216,7 +230,7 @@ export default function CalidadPage({ onVolver }: Props) {
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                       <Info label="Código" value={intention.codigo} mono />
                       <Info label="Donante" value={intention.donante} />
-                      <Info label="Fecha" value={intention.fecha} />
+                      <Info label="Fecha de intención" value={intention.fechaIntencion || intention.fecha} />
                       <Info label="Canal" value={intention.canal} />
                     </div>
                     <div className="p-4 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-between">
@@ -234,7 +248,7 @@ export default function CalidadPage({ onVolver }: Props) {
                   </section>
                 )}
 
-                {currentStep === 1 && (
+                {false && currentStep === 1 && (
                   <div className="space-y-6">
                     <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                       <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
@@ -277,7 +291,7 @@ export default function CalidadPage({ onVolver }: Props) {
                   </div>
                 )}
 
-                {currentStep === 3 && (
+                {currentStep === 2 && (
                   <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <CheckCircle2 className="h-4 w-4 text-[#5cb89a]" /> Evaluación de Calidad e Inocuidad
@@ -297,10 +311,19 @@ export default function CalidadPage({ onVolver }: Props) {
                         </div>
                       ))}
                     </div>
+                    <div className="space-y-2 border-t border-gray-100 pt-5">
+                      <label className="text-xs font-medium uppercase text-gray-500">Observaciones de la evaluación</label>
+                      <textarea
+                        className="min-h-[100px] w-full rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm text-gray-800 transition-all focus:outline-none focus:ring-2 focus:ring-[#5cb89a]"
+                        placeholder="Registre observaciones de la evaluación técnica..."
+                        value={evaluationObs}
+                        onChange={(e) => setEvaluationObs(e.target.value)}
+                      />
+                    </div>
                   </section>
                 )}
 
-                {currentStep === 2 && (
+                {currentStep === 1 && (
                   <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <FileText className="h-4 w-4 text-[#5cb89a]" /> Validación de Documentos y Evidencias
@@ -352,7 +375,7 @@ export default function CalidadPage({ onVolver }: Props) {
                   </section>
                 )}
 
-                {currentStep === 4 && (
+                {currentStep === 3 && (
                   <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
                     <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
                       <CheckCircle2 className="h-4 w-4 text-[#5cb89a]" /> Veredicto Final de Calidad
@@ -401,8 +424,7 @@ export default function CalidadPage({ onVolver }: Props) {
               </button>
             </div>
             <div className="h-[500px] w-full bg-gray-100">
-              <iframe src={`https://www.google.com/maps/embed/v1/search?key=YOUR_GOOGLE_MAPS_API_KEY&q=${encodeURIComponent(intention?.logistica?.direccion || "")}`} className="h-full w-full border-0" allowFullScreen />
-              {!intention?.logistica?.direccion && <div className="h-full w-full flex items-center justify-center text-gray-500">Dirección no especificada</div>}
+              {pickupMapUrl ? <iframe src={pickupMapUrl} title="Ubicación de recojo" className="h-full w-full border-0" allowFullScreen /> : <div className="h-full w-full flex items-center justify-center text-gray-500">No hay coordenadas ni dirección para mostrar</div>}
             </div>
             <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-end">
               <button onClick={() => setIsMapOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cerrar</button>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getLocalDateISO } from "../utils/date";
 import {
   ArrowLeft,
   FileText,
@@ -302,8 +303,8 @@ export default function CoordinacionPage({ onVolver }: Props) {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {[
-                        { org: "Comedor Popular San Juan", canal: "WhatsApp", tipo: "Confirmación de Rescate", estado: "entregado", fecha: "2026-09-15 08:00" },
-                        { org: "Comedor Popular San Juan", canal: "Correo", tipo: "Guía de Remisión", estado: "enviado", fecha: "2026-09-15 08:05" },
+                        { org: "Comedor Popular San Juan", canal: "WhatsApp", tipo: "Confirmación de Rescate", estado: "entregado", fecha: `${getLocalDateISO()} 08:00` },
+                        { org: "Comedor Popular San Juan", canal: "Correo", tipo: "Guía de Remisión", estado: "enviado", fecha: `${getLocalDateISO()} 08:05` },
                       ].map((msg, i) => (
                         <tr key={i} className="hover:bg-gray-50/50 transition-colors group">
                           <td className="px-6 py-4 text-sm font-medium text-gray-900">{msg.org}</td>
@@ -378,8 +379,8 @@ export default function CoordinacionPage({ onVolver }: Props) {
                   </div>
                   <div className="space-y-3">
                     {[
-                      { name: "Acta de Entrega", desc: "Detalle de productos y cantidades", type: "PDF", size: "120 KB", date: "2026-09-15 10:00", status: "Generado" },
-                      { name: "Guía de Remisión", desc: "Documento legal de traslado", type: "PDF", size: "85 KB", date: "2026-09-15 10:05", status: "Generado" },
+                      { name: "Acta de Entrega", desc: "Detalle de productos y cantidades", type: "PDF", size: "120 KB", date: `${getLocalDateISO()} 10:00`, status: "Generado" },
+                      { name: "Guía de Remisión", desc: "Documento legal de traslado", type: "PDF", size: "85 KB", date: `${getLocalDateISO()} 10:05`, status: "Generado" },
                     ].map((doc, i) => (
                       <div key={i} className="group flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white hover:border-[#5cb89a] hover:shadow-sm transition-all cursor-pointer">
                         <div className="flex items-center gap-3">

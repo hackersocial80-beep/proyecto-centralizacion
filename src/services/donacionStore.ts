@@ -7,6 +7,7 @@ import type { Donacion, ResumenDonacion } from "../types/donacion";
 import { ETAPAS_KEY, ETAPAS_PROCESO, TIPOS_DOCUMENTO } from "../types/donacion";
 import { intencionStore } from "./intencionStore";
 import type { Intencion } from "../types/intencion";
+import { getLocalDateISO } from "../utils/date";
 
 const baseChecklist = () =>
   ETAPAS_PROCESO.map((etapa) => ({ etapa, completado: false }));
@@ -61,15 +62,15 @@ const seedDonaciones: Record<string, Partial<Donacion>> = {
         tipo: "declaracion_aptitud",
         cargado: true,
         nombre: "declaracion-aptitud-alicorp.pdf",
-        fechaCarga: "2026-08-08T11:00:00Z",
+        fechaCarga: new Date().toISOString(),
       },
       { tipo: "ficha_tecnica", cargado: false },
       { tipo: "certificado_analisis", cargado: false },
       { tipo: "fotografias", cargado: true, nombre: "fotos-alicorp.zip" },
     ],
     checklist: [
-      { etapa: "Registro de intencion", completado: true, fecha: "2026-08-08" },
-      { etapa: "Evaluacion de calidad", completado: true, fecha: "2026-08-09" },
+      { etapa: "Registro de intencion", completado: true, fecha: getLocalDateISO() },
+      { etapa: "Evaluacion de calidad", completado: true, fecha: getLocalDateISO() },
       { etapa: "Aprobacion", completado: false },
       { etapa: "Asignacion", completado: false },
       { etapa: "Operacion", completado: false },
@@ -151,7 +152,7 @@ export const donacionStore = {
                 ...c,
                 completado: !c.completado,
                 fecha: !c.completado
-                  ? new Date().toISOString().slice(0, 10)
+                  ? getLocalDateISO()
                   : c.fecha,
               }
             : c
