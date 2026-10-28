@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   User
 } from "lucide-react";
-import { getIntenciones, getIntencionById, updateIntencionStatus } from "../../services/intencionService";
+import { getIntenciones, getIntencionById, isCampaignIntent, updateIntencionWorkflow } from "../../services/intencionService";
+import SelectionPlaceholder from "../ui/SelectionPlaceholder";
 
 interface Props {
   onVolver: () => void;
@@ -66,6 +67,13 @@ const getPickupMapUrl = (logistica: any) => {
   return query ? `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed` : "";
 };
 
+const isPendingLogistics = (intent: any) => {
+  const status = String(intent?.estado ?? "").trim().toLowerCase();
+  const approvedByQuality = status === "1" || status === "aprobadacalidad";
+  const pendingCampaign = isCampaignIntent(intent) && ["", "0", "capturada", "pendiente"].includes(status);
+  return approvedByQuality || pendingCampaign;
+};
+
 export default function LogisticaPage({ onVolver }: Props) {
   const [intentions, setIntentions] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -73,6 +81,7 @@ export default function LogisticaPage({ onVolver }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [isGerenciaEmailModalOpen, setIsGerenciaEmailModalOpen] = useState(false);
   const pickupMapUrl = getPickupMapUrl(intention?.logistica);
 
   // State for Editable Data
@@ -87,7 +96,7 @@ export default function LogisticaPage({ onVolver }: Props) {
     async function load() {
       try {
         const data = await getIntenciones();
-        const filtered = data.filter((i: any) => i.estado === 1 || i.estado === "AprobadaCalidad");
+        const filtered = data.filter(isPendingLogistics);
         setIntentions(filtered);
       } catch (e) {
         console.error("Error loading intentions", e);
@@ -106,7 +115,7 @@ export default function LogisticaPage({ onVolver }: Props) {
       setSelectedStrategy("bap");
       setLogisticsObs("");
       setApprovalStatus("pendiente");
-      setApprovalObs("");
+      setApprovalObs(data.gerenciaApprovalStatus === "Devuelta a Logística" ? String(data.gerenciaApprovalObservation ?? "") : "");
       setResponsable("");
       setCurrentStep(0);
     } catch (e) {
@@ -128,11 +137,54 @@ export default function LogisticaPage({ onVolver }: Props) {
       alert("Por favor, asigne un estado de aprobación logística.");
       return;
     }
+    if (isCampaignIntent(intention)) {
+      const campaignStart = String(intention?.fechaInicioCampania ?? "").slice(0, 10);
+      const campaignEnd = String(intention?.fechaFinCampania ?? "").slice(0, 10);
+      const pickupStart = String(intention?.logistica?.fechaDesde ?? "").slice(0, 10);
+      const pickupEnd = String(intention?.logistica?.fechaHasta ?? "").slice(0, 10);
+      if (!campaignStart || !campaignEnd) {
+        alert("La intención de campaña debe tener fecha de inicio y fin antes de continuar.");
+        return;
+      }
+      if (campaignStart > campaignEnd) {
+        alert("La fecha de fin de campaña no puede ser anterior a la fecha de inicio.");
+        return;
+      }
+      if (!pickupStart || !pickupEnd || pickupStart > pickupEnd) {
+        alert("Configura un periodo de recojo válido para la intención de campaña.");
+        return;
+      }
+      if (pickupStart < campaignStart || pickupEnd > campaignEnd) {
+        alert(`El periodo de recojo debe estar dentro de la campaña (${campaignStart} a ${campaignEnd}).`);
+        return;
+      }
+    }
     try {
-      await updateIntencionStatus(selectedId, 2);
-      alert("Intención finalizada y enviada a Distribución.");
+      const approvalNeedsManagement = approvalStatus === "aprobado" || approvalStatus === "observaciones";
+      await updateIntencionWorkflow(selectedId, {
+        estado: approvalNeedsManagement ? "PendienteAprobacionGerencia" : "RechazadaLogistica",
+        logisticsApprovalStatus: approvalStatus,
+        logisticsApprovalObservation: approvalObs.trim(),
+        logisticsStrategy: STRATEGIES[selectedStrategy].title,
+        logisticsResponsible: responsable.trim(),
+        gerenciaApprovalStatus: approvalNeedsManagement ? "Pendiente" : "No requerida",
+        gerenciaRequestedAt: approvalNeedsManagement ? new Date().toISOString() : "",
+      });
+      if (approvalNeedsManagement) {
+        const recipient = String(import.meta.env.VITE_GERENCIA_EMAIL ?? "").trim();
+        if (recipient) {
+          const subject = `Aprobación logística pendiente: ${intention?.codigo || selectedId}`;
+          const body = [`Hola Gerencia,`, ``, `Logística registró ${approvalStatus === "observaciones" ? "una aprobación con observaciones" : "una aprobación"} para la intención ${intention?.codigo || selectedId} (${intention?.donante || "donante"}).`, ``, `Observaciones: ${approvalObs.trim() || "Sin observaciones"}.`, ``, `Ingresa al sistema (${window.location.origin}) y revisa la bandeja de Gerencia.`].join("\n");
+          window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          alert("La solicitud quedó pendiente en la bandeja de Gerencia. Se abrió un borrador de correo; debes enviarlo desde tu aplicación de correo.");
+        } else {
+          setIsGerenciaEmailModalOpen(true);
+        }
+      } else {
+        alert("La aprobación logística fue rechazada y no se envió a Gerencia.");
+      }
       const data = await getIntenciones();
-      setIntentions(data.filter((i: any) => i.estado === 1 || i.estado === "AprobadaCalidad"));
+      setIntentions(data.filter(isPendingLogistics));
       setIntention(null);
       setSelectedId("");
     } catch (e) {
@@ -181,16 +233,18 @@ export default function LogisticaPage({ onVolver }: Props) {
 
         <div className="lg:col-span-3">
           {!intention ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-20 text-center text-gray-500">
-              {isLoading ? (
+            isLoading ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-3xl border border-[#e2ebe5] bg-white text-[#64756b]">
+
                 <div className="flex flex-col items-center gap-3">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#5cb89a] border-t-transparent" />
                   <p className="text-sm">Cargando detalles...</p>
                 </div>
-              ) : (
-                <p className="text-sm">Selecciona una intención para validar los datos logísticos.</p>
-              )}
-            </div>
+              
+              </div>
+            ) : (
+              <SelectionPlaceholder />
+            )
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -222,6 +276,11 @@ export default function LogisticaPage({ onVolver }: Props) {
                       <Info label="Código" value={intention.codigo} mono />
                       <Info label="Donante" value={intention.donante} />
                       <Info label="Fecha de intención" value={intention.fechaIntencion || intention.fecha} />
+                      {isCampaignIntent(intention) && <>
+                        <Info label="Modalidad" value="Por campaña" />
+                        <Info label="Periodo de campaña" value={`${intention.fechaInicioCampania || "Sin inicio"} a ${intention.fechaFinCampania || "Sin fin"}`} />
+                        <Info label="Periodo de recojo" value={`${intention.logistica?.fechaDesde || "Sin inicio"} a ${intention.logistica?.fechaHasta || "Sin fin"}`} />
+                      </>}
                       <Info label="Responsable" value={intention.responsable} />
                     </div>
                     <div className="p-4 rounded-lg bg-gray-50 border border-gray-100 space-y-4">
@@ -458,6 +517,17 @@ export default function LogisticaPage({ onVolver }: Props) {
           )}
         </div>
       </div>
+      {isGerenciaEmailModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm" onClick={() => setIsGerenciaEmailModalOpen(false)}>
+          <section role="alertdialog" aria-modal="true" aria-labelledby="gerencia-email-title" className="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl animate-in zoom-in-95 duration-200" onClick={(event) => event.stopPropagation()}>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 ring-8 ring-amber-50/60"><AlertCircle className="h-7 w-7" /></div>
+            <span className="mt-5 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700">Solicitud registrada</span>
+            <h2 id="gerencia-email-title" className="mt-3 text-lg font-bold text-gray-900">Pendiente de revisión por Gerencia</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">La solicitud quedó pendiente en la bandeja de Gerencia. Falta configurar <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-700">VITE_GERENCIA_EMAIL</span> para preparar el correo.</p>
+            <button type="button" autoFocus onClick={() => setIsGerenciaEmailModalOpen(false)} className="mt-6 rounded-xl bg-[#315747] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#244536]">Entendido</button>
+          </section>
+        </div>
+      )}
       {isMapOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="max-w-4xl w-full rounded-2xl bg-white shadow-2xl overflow-hidden">

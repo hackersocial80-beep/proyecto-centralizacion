@@ -1,4 +1,6 @@
-import { Filter, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Filter, Loader2, RotateCcw, Search } from "lucide-react";
+import { fetchSuppliers } from "../../services/catalogService";
 import {
   FILTROS_VACIOS,
   RESPONSABLES,
@@ -10,6 +12,8 @@ interface Props {
   filtros: FiltrosIntencion;
   origins: Array<{ id: string; name: string }>;
   suppliers: Array<{ id: string; name: string }>;
+  selectedSupplier: { id: string; name: string } | null;
+  onSupplierSelected: (supplier: { id: string; name: string } | null) => void;
   intentionTypes: Array<{ id: string; name: string }>;
   onChange: (f: FiltrosIntencion) => void;
   onNuevaIntencion: () => void;
@@ -19,16 +23,56 @@ export default function FiltrosIntencionBar({
   filtros,
   origins,
   suppliers,
+  selectedSupplier,
+  onSupplierSelected,
   intentionTypes,
   onChange,
   onNuevaIntencion,
 }: Props) {
+  const [supplierQuery, setSupplierQuery] = useState("");
+  const [supplierOptions, setSupplierOptions] = useState(suppliers);
+  const [supplierSearchLoading, setSupplierSearchLoading] = useState(false);
+  const [showSupplierOptions, setShowSupplierOptions] = useState(false);
+
+  useEffect(() => {
+    const query = supplierQuery.trim();
+    const localResults = query
+      ? suppliers.filter((supplier) => `${supplier.name} ${supplier.id}`.toLowerCase().includes(query.toLowerCase()))
+      : suppliers;
+    setSupplierOptions(localResults);
+    setSupplierSearchLoading(false);
+    if (query.length < 2) return;
+
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setSupplierSearchLoading(true);
+      fetchSuppliers(query)
+        .then((items) => {
+          if (!active) return;
+          const matches = items.map((item: any) => {
+            const id = item?.supplierId ?? item?.supplierID ?? item?.idSupplier ?? item?.id ?? item?.code;
+            const name = item?.supplierName ?? item?.supplier_name ?? item?.businessName ?? item?.companyName ?? item?.razonSocial ?? item?.tradeName ?? item?.name ?? item?.description;
+            return { id: String(id ?? ""), name: String(name ?? "") };
+          }).filter((supplier: { id: string; name: string }) => supplier.id && supplier.name && `${supplier.name} ${supplier.id}`.toLowerCase().includes(query.toLowerCase()));
+          setSupplierOptions(matches.length > 0 ? matches : localResults);
+        })
+        .catch(() => { if (active) setSupplierOptions(localResults); })
+        .finally(() => { if (active) setSupplierSearchLoading(false); });
+    }, 300);
+
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [supplierQuery, suppliers]);
+
   const setField = <K extends keyof FiltrosIntencion>(
     key: K,
     value: FiltrosIntencion[K]
   ) => onChange({ ...filtros, [key]: value });
 
-  const limpiar = () => onChange(FILTROS_VACIOS);
+  const limpiar = () => {
+    onChange(FILTROS_VACIOS);
+    onSupplierSelected(null);
+    setSupplierQuery("");
+  };
 
   const inputBase =
     "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 transition-all focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20";
@@ -55,22 +99,21 @@ export default function FiltrosIntencionBar({
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">
-            Filtrar donante
-          </label>
-          <select
-            value={filtros.donante}
-            onChange={(e) => setField("donante", e.target.value)}
-            className={inputBase}
-          >
-            <option value="">Todos</option>
-            {suppliers.map((supplier) => (
-              <option key={supplier.id} value={supplier.id}>
-                {supplier.name}
-              </option>
-            ))}
-          </select>
+        <div className="relative">
+          <label className="mb-1 block text-xs font-medium text-gray-600">Filtrar donante</label>
+          <button type="button" role="combobox" aria-expanded={showSupplierOptions} aria-controls="filtro-donantes" onClick={() => { const open = !showSupplierOptions; setShowSupplierOptions(open); if (open) { setSupplierQuery(""); setSupplierOptions(suppliers); } }} className={inputBase + " flex items-center justify-between text-left"}>
+            <span className={selectedSupplier ? "truncate text-gray-800" : "text-gray-400"}>{selectedSupplier?.name ?? "Todos"}</span>
+            <Search className="ml-2 h-4 w-4 shrink-0 text-gray-400" />
+          </button>
+          {showSupplierOptions && <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2"><Search className="h-4 w-4 shrink-0 text-gray-400" /><input autoFocus value={supplierQuery} onChange={(event) => setSupplierQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setShowSupplierOptions(false); }} placeholder="Buscar donante por nombre o RUC..." className="min-w-0 flex-1 text-sm outline-none placeholder:text-gray-400" />{supplierSearchLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}</div>
+            <div id="filtro-donantes" role="listbox" className="max-h-56 overflow-y-auto py-1">
+              <button type="button" role="option" aria-selected={!filtros.donante} onClick={() => { setField("donante", ""); onSupplierSelected(null); setShowSupplierOptions(false); }} className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">Todos</button>
+              {supplierOptions.map((supplier) => <button key={supplier.id} type="button" role="option" aria-selected={supplier.id === filtros.donante} onClick={() => { setField("donante", supplier.id); onSupplierSelected(supplier); setShowSupplierOptions(false); }} className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#5cb89a]/10 hover:text-[#32876d]">{supplier.name}</button>)}
+              {supplierOptions.length === 0 && <p className="px-3 py-3 text-sm text-gray-500">{supplierSearchLoading ? "Buscando donantes..." : "No se encontraron donantes."}</p>}
+              {supplierSearchLoading && supplierOptions.length > 0 && <p className="px-3 py-2 text-xs text-gray-400">Buscando en el catálogo completo...</p>}
+            </div>
+          </div>}
         </div>
 
         <div>

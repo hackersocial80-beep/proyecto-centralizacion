@@ -18,7 +18,8 @@ import {
   ChevronLeft,
   Eye
 } from "lucide-react";
-import { getIntenciones, getIntencionById, updateIntencionStatus } from "../../services/intencionService";
+import { getIntenciones, getIntencionById, isCampaignIntent, updateIntencionStatus } from "../../services/intencionService";
+import SelectionPlaceholder from "../ui/SelectionPlaceholder";
 
 interface Props {
   onVolver: () => void;
@@ -35,6 +36,7 @@ const getPickupMapUrl = (logistica: any) => {
 };
 
 const isPendingQuality = (intent: any) => {
+  if (isCampaignIntent(intent)) return false;
   const status = String(intent?.estado ?? "").trim().toLowerCase();
   return status === "" || status === "0" || status === "capturada" || status === "pendiente";
 };
@@ -60,6 +62,9 @@ export default function CalidadPage({ onVolver }: Props) {
   const [selectedId, setSelectedId] = useState<string>("");
   const [intention, setIntention] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isQualityRequirementsModalOpen, setIsQualityRequirementsModalOpen] = useState(false);
+  const [isApproveSuccess, setIsApproveSuccess] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
   // Evaluation States
@@ -114,21 +119,31 @@ export default function CalidadPage({ onVolver }: Props) {
     setDocValidation(prev => ({ ...prev, [docName]: !prev[docName] }));
   };
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
     if (!selectedId || !intention) return;
     const hasDocs = intention.documentos && intention.documentos.length > 0;
     const hasPhotos = intention.fotos && intention.fotos.length > 0;
     if (!hasDocs || !hasPhotos) {
-      alert("No se puede aprobar la calidad: La intención debe contar con documentos y fotos adjuntas.");
+      setIsQualityRequirementsModalOpen(true);
       return;
     }
     if (finalResult === "pendiente") {
       alert("Por favor, asigne un resultado a la evaluación final de calidad.");
       return;
     }
+    setIsApproveSuccess(false);
+    setIsApproveModalOpen(true);
+  };
+
+  const confirmApprove = async () => {
+    if (!selectedId || !intention) return;
     try {
       await updateIntencionStatus(selectedId, 1);
-      alert("Intención aprobada por Calidad exitosamente.");
+      setIsApproveSuccess(true);
+      window.setTimeout(() => {
+        setIsApproveModalOpen(false);
+        setIsApproveSuccess(false);
+      }, 1800);
       const data = await getIntenciones();
       setIntentions(data.filter(isPendingQuality));
       setIntention(null);
@@ -190,16 +205,14 @@ export default function CalidadPage({ onVolver }: Props) {
 
         <div className="lg:col-span-3">
           {!intention ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-20 text-center text-gray-500">
-              {isLoading ? (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#5cb89a] border-t-transparent" />
-                  <p className="text-sm">Cargando detalles...</p>
-                </div>
-              ) : (
-                <p className="text-sm">Selecciona una intención de la lista para iniciar la revisión de calidad.</p>
-              )}
-            </div>
+            isLoading ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-3xl border border-[#e2ebe5] bg-white text-[#64756b]">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#5cb89a] border-t-transparent" />
+                <p className="text-sm">Cargando detalles...</p>
+              </div>
+            ) : (
+              <SelectionPlaceholder />
+            )
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -413,6 +426,33 @@ export default function CalidadPage({ onVolver }: Props) {
         </div>
       </div>
 
+      {isApproveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm" onClick={() => setIsApproveModalOpen(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="approve-quality-title" className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-200" onClick={(event) => event.stopPropagation()}>
+            <div className="p-6 sm:p-8">
+              <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ring-8 ${isApproveSuccess ? "bg-emerald-50 text-emerald-600 ring-emerald-50/60" : "bg-amber-50 text-amber-600 ring-amber-50/60"}`}>
+                {isApproveSuccess ? <CheckCircle2 className="h-7 w-7" /> : <AlertCircle className="h-7 w-7" />}
+              </div>
+              <h2 id="approve-quality-title" className="mt-5 text-center text-xl font-bold text-gray-900">{isApproveSuccess ? "Intención aprobada por Calidad exitosamente." : "¿Estás seguro de aprobar por calidad?"}</h2>
+              <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-6 text-gray-600">{isApproveSuccess ? "La aprobación quedó registrada." : "Antes de continuar, confirma que revisaste la evaluación, los documentos y las fotos. Si algo falta, puedes volver a revisar."}</p>
+              {!isApproveSuccess && <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
+                <button type="button" onClick={() => { setIsApproveModalOpen(false); setCurrentStep(Math.max(0, STEPS.length - 2)); }} className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">Revisar nuevamente</button>
+                <button type="button" onClick={confirmApprove} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#315747] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#244536]"><CheckCircle className="h-4 w-4" /> Sí, aprobar calidad</button>
+              </div>}
+            </div>
+          </section>
+        </div>
+      )}
+      {isQualityRequirementsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm" onClick={() => setIsQualityRequirementsModalOpen(false)}>
+          <section role="alertdialog" aria-modal="true" aria-labelledby="quality-requirements-title" className="w-full max-w-md rounded-3xl bg-white p-6 text-center shadow-2xl animate-in zoom-in-95 duration-200" onClick={(event) => event.stopPropagation()}>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 ring-8 ring-amber-50/60"><AlertCircle className="h-7 w-7" /></div>
+            <h2 id="quality-requirements-title" className="mt-5 text-lg font-bold text-gray-900">No se puede aprobar la calidad</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">La intención debe contar con documentos y fotos adjuntas.</p>
+            <button type="button" autoFocus onClick={() => setIsQualityRequirementsModalOpen(false)} className="mt-6 rounded-xl bg-[#315747] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#244536]">Entendido</button>
+          </section>
+        </div>
+      )}
       {/* Map Popup */}
       {isMapOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">

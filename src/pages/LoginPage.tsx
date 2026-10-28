@@ -26,6 +26,7 @@ export default function LoginPage({ onLoginSuccess }: Props) {
 
       localStorage.setItem("authUser", JSON.stringify(result.data.user));
       localStorage.setItem("authExpiresAt", result.data.expiresAt);
+      localStorage.setItem("authLastActivityAt", String(Date.now()));
       localStorage.removeItem("authIsDemo");
       setLoggedUser(result.data.user);
       onLoginSuccess?.(result.data.user);

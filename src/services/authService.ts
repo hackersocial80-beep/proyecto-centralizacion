@@ -52,6 +52,7 @@ export function getAuthExpirationTime(): number | null {
 export function clearAuthSession(): void {
   localStorage.removeItem("authUser");
   localStorage.removeItem("authExpiresAt");
+  localStorage.removeItem("authLastActivityAt");
   localStorage.removeItem("authIsDemo");
   localStorage.removeItem("auth_token");
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, type ChangeEvent, type FormEvent, useRef } from "react";
-import { Save, Trash2, Loader2, FileText, Package, CheckCircle, Truck, Upload, Download, MapPin } from "lucide-react";
+import { Save, Trash2, Loader2, FileText, Package, CheckCircle, Truck, Upload, Download, MapPin, Search } from "lucide-react";
 import ProductosGrid from "../components/intencion/ProductosGrid";
 import UbigeoSelector from "../components/intencion/UbigeoSelector";
 import { getLocalDateISO } from "../utils/date";
@@ -28,6 +28,7 @@ import {
 import { intencionStore } from "../services/intencionStore";
 import { useCatalogs, catalogStore } from "../services/catalogStore";
 import { saveIntencion } from "../services/intencionService";
+import { fetchSuppliers } from "../services/catalogService";
 import { Button } from "../components/ui/Button";
 import { Input, Select } from "../components/ui/Input";
 import { Modal } from "../components/ui/Modal";
@@ -35,6 +36,25 @@ import { useToast } from "../components/ui/Toast";
 import { FormField } from "../components/ui/FormField";
 import Tooltip from "../components/ui/Tooltip";
 
+interface SupplierContactOption {
+  id: string;
+  name: string;
+  position: string;
+  email: string;
+  mobilePhone: string;
+}
+interface SupplierOption { id: string; name: string; raw?: any; }
+const contactsFromSupplier = (supplier: any): SupplierContactOption[] => {
+  const source = supplier?.contacts ?? supplier?.supplierContacts ?? supplier?.contactPersons ?? supplier?.contactsList ?? [];
+  const rows = Array.isArray(source) ? source : source?.items ?? source?.data ?? [];
+  return rows.map((item: any, index: number) => ({
+    id: String(item?.contactId ?? item?.id ?? index),
+    name: String(item?.fullName ?? item?.contactName ?? item?.name ?? item?.personName ?? "").trim(),
+    position: String(item?.position ?? item?.cargo ?? item?.jobTitle ?? item?.title ?? "").trim(),
+    email: String(item?.email ?? item?.contactEmail ?? "").trim(),
+    mobilePhone: String(item?.mobilePhone ?? item?.mobile ?? item?.cellPhone ?? item?.phoneNumber ?? item?.phone ?? "").trim(),
+  })).filter((contact: SupplierContactOption) => contact.name);
+};
 interface Props {
   onCancelar: () => void;
   onGuardada: () => void;
@@ -62,6 +82,7 @@ interface CalidadForm {
   compromisoIdoneidad: CompromisoIdoneidadFlags;
   condicionAlmacenamiento: CondicionAlmacenamiento | "";
   fechaEstimadaEntrega: string;
+  porcentajeMerma: string;
   descripcionGeneralDonacion: string;
   incluyeProductosSensibles: ProductoSensible | "";
   recomendacionesConsumo: string;
@@ -189,10 +210,102 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
   const [donante, setDonante] = useState("");
   const [supplierId, setSupplierId] = useState("");
+  const [supplierQuery, setSupplierQuery] = useState("");
+  const [supplierResults, setSupplierResults] = useState<SupplierOption[]>([]);
+  const [supplierSearchLoading, setSupplierSearchLoading] = useState(false);
+  const [showSupplierResults, setShowSupplierResults] = useState(false);
+
+  useEffect(() => {
+    const query = supplierQuery.trim();
+    if (supplierId && query === donante) {
+      setSupplierResults([{ id: supplierId, name: donante }]);
+      setSupplierSearchLoading(false);
+      return;
+    }
+    const localResults = query
+      ? catalogs.proveedores.filter((supplier) => `${supplier.name} ${supplier.id}`.toLowerCase().includes(query.toLowerCase()))
+      : catalogs.proveedores;
+    setSupplierResults(localResults);
+    setSupplierSearchLoading(false);
+    if (query.length < 2) return;
+
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setSupplierSearchLoading(true);
+      fetchSuppliers(query)
+        .then((items) => {
+          if (!active) return;
+          const remoteResults: SupplierOption[] = items.map((item: any) => {
+            const id = item?.supplierId ?? item?.supplierID ?? item?.idSupplier ?? item?.id ?? item?.code;
+            const name = item?.supplierName ?? item?.supplier_name ?? item?.businessName ?? item?.companyName ?? item?.razonSocial ?? item?.tradeName ?? item?.name ?? item?.description;
+            return { id: String(id ?? ""), name: String(name ?? ""), raw: item };
+          }).filter((supplier: { id: string; name: string }) => supplier.id && supplier.name);
+          const matchingRemoteResults = remoteResults.filter((supplier: { id: string; name: string }) => `${supplier.name} ${supplier.id}`.toLowerCase().includes(query.toLowerCase()));
+          setSupplierResults(matchingRemoteResults.length > 0 ? matchingRemoteResults : localResults);
+        })
+        .catch(() => {
+          if (active) setSupplierResults(localResults);
+        })
+        .finally(() => {
+          if (active) setSupplierSearchLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [supplierQuery, supplierId, donante, catalogs.proveedores]);
+
+  useEffect(() => {
+    const closeSupplierResults = (event: MouseEvent) => {
+      if (!firstErrorRef.current?.contains(event.target as Node)) setShowSupplierResults(false);
+    };
+    document.addEventListener("mousedown", closeSupplierResults);
+    return () => document.removeEventListener("mousedown", closeSupplierResults);
+  }, []);
+
   const [contacto, setContacto] = useState("");
+  const [contactoCargo, setContactoCargo] = useState("");
+  const [contactoCorreo, setContactoCorreo] = useState("");
+  const [contactoMovil, setContactoMovil] = useState("");
+  const [supplierContacts, setSupplierContacts] = useState<SupplierContactOption[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const selectedSupplierContact = supplierContacts.find((item) => item.id === selectedContactId);
+  const selectSupplier = async (supplier: SupplierOption) => {
+    setSupplierId(supplier.id);
+    setDonante(supplier.name);
+    setSupplierQuery("");
+    setShowSupplierResults(false);
+    setValidationErrors((current) => ({ ...current, donante: "", contacto: "" }));
+    setSelectedContactId("");
+    setContacto("");
+    setContactoCargo("");
+    setContactoCorreo("");
+    setContactoMovil("");
+    let contacts = contactsFromSupplier(supplier.raw);
+    if (contacts.length === 0) {
+      setContactsLoading(true);
+      try {
+        const matches = await fetchSuppliers(supplier.name);
+        const detail = matches.find((item: any) => String(item?.supplierId ?? item?.supplierID ?? item?.idSupplier ?? item?.id ?? item?.code ?? "") === supplier.id)
+          ?? matches.find((item: any) => String(item?.supplierName ?? item?.supplier_name ?? item?.businessName ?? item?.companyName ?? item?.razonSocial ?? item?.tradeName ?? item?.name ?? item?.description ?? "").trim().toLowerCase() === supplier.name.trim().toLowerCase());
+        contacts = contactsFromSupplier(detail);
+      } catch (error) {
+        console.warn("No se pudieron cargar los contactos del donante", error);
+      } finally {
+        setContactsLoading(false);
+      }
+    }
+    setSupplierContacts(contacts);
+  };
   const [fechaIntencion, setFechaIntencion] = useState(
     getLocalDateISO()
   );
+  const [modalidadIntencion, setModalidadIntencion] = useState<"Normal" | "Campaña">("Normal");
+  const [fechaInicioCampania, setFechaInicioCampania] = useState("");
+  const [fechaFinCampania, setFechaFinCampania] = useState("");
   const [canal, setCanal] = useState<string>("");
   useEffect(() => {
     if (!canal && catalogs.canales.length > 0) {
@@ -212,6 +325,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     compromisoIdoneidad: { ...COMPROMISO_IDONEIDAD_INICIAL },
     condicionAlmacenamiento: "",
     fechaEstimadaEntrega: getLocalDateISO(),
+    porcentajeMerma: "",
     descripcionGeneralDonacion: "",
     incluyeProductosSensibles: "No",
     recomendacionesConsumo: "",
@@ -473,6 +587,13 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     if (!contacto.trim()) errors.contacto = "El contacto es obligatorio";
     if (!responsable.trim()) errors.responsable = "El responsable es obligatorio";
     if (!canal) errors.canal = "Selecciona un canal";
+    if (modalidadIntencion === "Campaña") {
+      if (!fechaInicioCampania) errors.fechaInicioCampania = "La fecha de inicio de campaña es obligatoria";
+      if (!fechaFinCampania) errors.fechaFinCampania = "La fecha de fin de campaña es obligatoria";
+      if (fechaInicioCampania && fechaFinCampania && fechaFinCampania < fechaInicioCampania) {
+        errors.fechaFinCampania = "La fecha de fin debe ser igual o posterior al inicio";
+      }
+    }
     if (!catalogs.tipoLugar.some((item) => item.id === logisticaForm.tipoLugar)) {
       errors.tipoLugar = "Selecciona un tipo de lugar del catálogo";
     }
@@ -552,7 +673,13 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
         donante: donante.trim(),
         contacto: contacto.trim(),
+        contactoCargo: contactoCargo.trim() || undefined,
+        contactoCorreo: contactoCorreo.trim() || undefined,
+        contactoMovil: contactoMovil.trim() || undefined,
         fechaIntencion,
+        modalidadIntencion,
+        fechaInicioCampania: modalidadIntencion === "Campaña" ? fechaInicioCampania : undefined,
+        fechaFinCampania: modalidadIntencion === "Campaña" ? fechaFinCampania : undefined,
         canal,
         responsable: responsable.trim(),
         tipoIntencion,
@@ -573,6 +700,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
         fechaEstimadaEntrega:
           calidadForm.fechaEstimadaEntrega || undefined,
+        porcentajeMerma: isAgroChannel && calidadForm.porcentajeMerma !== "" ? Number(calidadForm.porcentajeMerma) : undefined,
 
         descripcionGeneralDonacion:
           calidadForm.descripcionGeneralDonacion.trim() ||
@@ -659,6 +787,8 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
   ];
 
   const activeTabIndex = tabs.findIndex((t) => t.id === activeTab) + 1;
+  const selectedChannel = catalogs.canales.find((item) => String(item.id) === String(canal));
+  const isAgroChannel = [canal, selectedChannel?.name ?? ""].some((value) => normalizeHeader(value).includes("agro"));
   const latitude = Number(logisticaForm.latitud);
   const longitude = Number(logisticaForm.longitud);
   const hasValidCoordinates =
@@ -732,40 +862,102 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
               Datos de la intención
             </h2>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <div ref={firstErrorRef}>
-                <Select
-                  label="Donante"
-                  required
-                  value={supplierId}
-                  onChange={(e) => {
-                    const supplier = catalogs.proveedores.find((item) => item.id === e.target.value);
-                    setSupplierId(supplier?.id || "");
-                    setDonante(supplier?.name || "");
-                  }}
-                  error={validationErrors.donante}
+              <div ref={firstErrorRef} className="relative">
+                <label className="mb-1.5 block text-xs font-medium text-gray-600">Donante <span className="text-red-500">*</span></label>
+                <button
+                  type="button"
+                  role="combobox"
+                  aria-required="true"
+                  aria-expanded={showSupplierResults}
+                  aria-controls="resultados-donantes"
+                  onClick={() => { const open = !showSupplierResults; setShowSupplierResults(open); if (open) { setSupplierQuery(""); setSupplierResults(catalogs.proveedores); } }}
+                  onKeyDown={(event) => { if (event.key === "Escape") setShowSupplierResults(false); }}
+                  className={`flex w-full items-center justify-between rounded-lg border ${validationErrors.donante ? "border-red-500" : "border-gray-300"} bg-white px-3 py-2 text-left text-sm focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20`}
                 >
-                  <option value="">Seleccionar donante</option>
-                  {catalogs.proveedores.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </Select>
+                  <span className={donante ? "text-gray-800" : "text-gray-400"}>{donante || "Seleccionar donante"}</span>
+                  <Search className="h-4 w-4 shrink-0 text-gray-400" />
+                </button>
+                {validationErrors.donante && <p className="mt-1 text-[11px] font-medium text-red-500">{validationErrors.donante}</p>}
+                {showSupplierResults && <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+                  <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
+                    <Search className="h-4 w-4 shrink-0 text-gray-400" />
+                    <input
+                      id="buscar-donante"
+                      autoComplete="off"
+                      autoFocus
+                      value={supplierQuery}
+                      onChange={(event) => { setSupplierQuery(event.target.value); setSupplierId(""); setDonante(""); setSupplierContacts([]); setSelectedContactId(""); setContacto(""); setContactoCargo(""); setContactoCorreo(""); setContactoMovil(""); }}
+                      onKeyDown={(event) => { if (event.key === "Escape") setShowSupplierResults(false); }}
+                      placeholder="Buscar donante por nombre o RUC..."
+                      className="min-w-0 flex-1 text-sm text-gray-800 outline-none placeholder:text-gray-400"
+                      aria-controls="resultados-donantes"
+                      role="searchbox"
+                    />
+                    {supplierSearchLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+                  </div>
+                  <div id="resultados-donantes" role="listbox" className="max-h-56 overflow-y-auto py-1">
+                    {supplierResults.length > 0 ? supplierResults.map((supplier) => <button key={supplier.id} type="button" role="option" aria-selected={supplier.id === supplierId} onClick={() => { void selectSupplier(supplier); }} className="block w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-[#5cb89a]/10 hover:text-[#32876d]">{supplier.name}</button>) : <p className="px-3 py-3 text-sm text-gray-500">{supplierSearchLoading ? "Buscando donantes..." : "No se encontraron donantes. Prueba con otro nombre o RUC."}</p>}
+                    {supplierSearchLoading && supplierResults.length > 0 && <p className="px-3 py-2 text-xs text-gray-400">Buscando en el catálogo completo...</p>}
+                  </div>
+                </div>}
               </div>
-              <Input
-                label="Contacto"
-                required
-                value={contacto}
-                onChange={(e) => setContacto(e.target.value)}
-                placeholder="Correo o telefono"
-                error={validationErrors.contacto}
-              />
+              <div>
+                <label htmlFor="contacto-donante" className="mb-1.5 block text-xs font-medium text-gray-600">Contacto <span className="text-red-500">*</span></label>
+                <select id="contacto-donante" required disabled={!supplierId || contactsLoading || supplierContacts.length === 0} value={selectedContactId} onChange={(event) => { const selected = supplierContacts.find((item) => item.id === event.target.value); setSelectedContactId(event.target.value); setContacto(selected?.name ?? ""); setContactoCargo(selected?.position ?? ""); setContactoCorreo(selected?.email ?? ""); setContactoMovil(selected?.mobilePhone ?? ""); setValidationErrors((current) => ({ ...current, contacto: "" })); }} className={`w-full rounded-lg border ${validationErrors.contacto ? "border-red-500" : "border-gray-300"} bg-white px-3 py-2 text-sm text-gray-800 focus:border-[#5cb89a] focus:outline-none focus:ring-2 focus:ring-[#5cb89a]/20 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400`}>
+                  <option value="">{!supplierId ? "Primero selecciona un donante" : contactsLoading ? "Cargando contactos..." : supplierContacts.length === 0 ? "No hay contactos registrados" : "Seleccionar contacto"}</option>
+                  {supplierContacts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+                {validationErrors.contacto && <p className="mt-1 text-[11px] font-medium text-red-500">{validationErrors.contacto}</p>}
+                {supplierId && !contactsLoading && (selectedSupplierContact || supplierContacts.length === 0) && (
+                  <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg border border-[#dcebe1] bg-[#f8fcf9] p-3 sm:grid-cols-2">
+                    <Input label="Nombre del contacto" required value={contacto} onChange={(event) => setContacto(event.target.value)} placeholder="Nombre y apellidos" />
+                    <Input label="Cargo" required value={contactoCargo} onChange={(event) => setContactoCargo(event.target.value)} placeholder="Cargo del contacto" />
+                    <Input label="Correo electrónico" type="email" value={contactoCorreo} onChange={(event) => setContactoCorreo(event.target.value)} placeholder="nombre@empresa.com" />
+                    <Input label="Número móvil" type="tel" required value={contactoMovil} onChange={(event) => setContactoMovil(event.target.value)} placeholder="+51 999 999 999" />
+                  </div>
+                )}
+              </div>
               <Input
                 label="Fecha de intención"
                 type="date"
                 value={fechaIntencion}
                 onChange={(e) => setFechaIntencion(e.target.value)}
               />
+              <Select
+                label="Modalidad de la intención"
+                value={modalidadIntencion}
+                onChange={(e) => {
+                  const modalidad = e.target.value as "Normal" | "Campaña";
+                  setModalidadIntencion(modalidad);
+                  if (modalidad === "Normal") {
+                    setFechaInicioCampania("");
+                    setFechaFinCampania("");
+                    setValidationErrors((current) => ({ ...current, fechaInicioCampania: "", fechaFinCampania: "" }));
+                  }
+                }}
+              >
+                <option value="Normal">Normal</option>
+                <option value="Campaña">Por campaña</option>
+              </Select>
+              {modalidadIntencion === "Campaña" && <>
+                <Input
+                  label="Fecha de inicio de campaña"
+                  type="date"
+                  required
+                  value={fechaInicioCampania}
+                  onChange={(e) => setFechaInicioCampania(e.target.value)}
+                  error={validationErrors.fechaInicioCampania}
+                />
+                <Input
+                  label="Fecha fin de campaña"
+                  type="date"
+                  required
+                  min={fechaInicioCampania || undefined}
+                  value={fechaFinCampania}
+                  onChange={(e) => setFechaFinCampania(e.target.value)}
+                  error={validationErrors.fechaFinCampania}
+                />
+              </>}
               <Select
                 label="Canal"
                 required
@@ -919,12 +1111,6 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                       value={p.pesoEstimadoKg}
                       onChange={(e) => setProductoField(p.id, "pesoEstimadoKg", e.target.value)}
                     />
-                    <Input
-                      label="Vida util"
-                      type="date"
-                      value={p.vidaUtil}
-                      onChange={(e) => setProductoField(p.id, "vidaUtil", e.target.value)}
-                    />
                     <Select
                       label="Tipo de producto"
                       value={p.tipoProducto}
@@ -1003,14 +1189,18 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                   </option>
                 ))}
               </Select>
-              <Input
-                label="Fecha estimada de entrega"
-                type="date"
-                value={calidadForm.fechaEstimadaEntrega}
-                onChange={(e) => setCalidadField(
-                  "fechaEstimadaEntrega",
-                  e.target.value)}
-              />
+              {isAgroChannel && (
+                <Input
+                  label="Porcentaje de merma (%)"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={calidadForm.porcentajeMerma}
+                  onChange={(event) => setCalidadField("porcentajeMerma", event.target.value)}
+                  placeholder="Ej. 2.5"
+                />
+              )}
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <span>¿Incluye insumos sensibles?</span>
@@ -1044,7 +1234,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-900 mb-3">
-                  Compromiso de idoneidad
+                  Compromiso de idoneidad del Donante
                 </label>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1180,6 +1370,85 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
 
         {activeTab === "logistica" && (
           <div className="space-y-8">
+            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-900">
+                <Truck className="h-5 w-5 text-[#5cb89a]" />
+                Disponibilidad para recojo
+              </h2>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+                <Input
+                  label="Fecha desde"
+                  type="date"
+                  value={logisticaForm.fechaDesde}
+                  onChange={(e) =>
+                    setLogisticaField("fechaDesde", e.target.value)
+                  }
+                />
+
+                <Input
+                  label="Fecha hasta"
+                  type="date"
+                  value={logisticaForm.fechaHasta}
+                  onChange={(e) =>
+                    setLogisticaField("fechaHasta", e.target.value)
+                  }
+                />
+
+                <Input
+                  label="Horario disponible"
+                  value={logisticaForm.horarioDisponible}
+                  onChange={(e) =>
+                    setLogisticaField(
+                      "horarioDisponible",
+                      e.target.value
+                    )
+                  }
+                  placeholder="Ej. 09:00 - 17:00"
+                />
+
+                <Input
+                  label="Tiempo estimado de carga (min)"
+                  type="number"
+                  min="0"
+                  value={logisticaForm.tiempoEstimadoCarga}
+                  onChange={(e) =>
+                    setLogisticaField(
+                      "tiempoEstimadoCarga",
+                      e.target.value
+                    )
+                  }
+                />
+
+              </div>
+            </section>
+            {isAgroChannel && (
+              <section className="rounded-2xl border border-[#cfe4d6] bg-[#f8fcf9] p-6 shadow-sm">
+                <h2 className="mb-5 flex items-center gap-2 text-lg font-bold text-gray-900">
+                  <Package className="h-5 w-5 text-[#5cb89a]" />
+                  Información de entrega y vida útil · AGRO
+                </h2>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input
+                    label="Fecha estimada de entrega"
+                    type="date"
+                    value={calidadForm.fechaEstimadaEntrega}
+                    onChange={(event) => setCalidadField("fechaEstimadaEntrega", event.target.value)}
+                  />
+                  {productosForm.map((producto, index) => (
+                    <Input
+                      key={producto.id}
+                      label={`Vida útil · ${producto.producto.trim() || `Producto ${index + 1}`}`}
+                      type="date"
+                      value={producto.vidaUtil}
+                      onChange={(event) => setProductoField(producto.id, "vidaUtil", event.target.value)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="mb-6 text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Truck className="h-5 w-5 text-[#5cb89a]" />
@@ -1368,21 +1637,53 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                     <MapPin className="h-5 w-5 text-[#5cb89a]" />
                     Requisitos para ingreso a planta
                   </h3>
-                  <p className="mt-1 text-sm text-gray-500">Selecciona todos los que apliquen.</p>
+                  <p className="mt-1 text-sm text-gray-500">Selecciona los requisitos aplicables. Tus elecciones aparecerán en el panel lateral.</p>
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {catalogs.requisitosIngreso.map((requisito) => {
-                    const seleccionado = logisticaForm.requisitosIngreso.includes(requisito.id);
-                    return (
-                      <label key={requisito.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition-colors ${seleccionado ? "border-[#5cb89a] bg-[#5cb89a]/10 text-gray-900" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}>
-                        <input type="checkbox" checked={seleccionado} onChange={(event) => setLogisticaField("requisitosIngreso", event.target.checked ? [...logisticaForm.requisitosIngreso, requisito.id] : logisticaForm.requisitosIngreso.filter((id) => id !== requisito.id))} className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]" />
-                        <span>{requisito.name}</span>
-                      </label>
-                    );
-                  })}
-                  {catalogs.requisitosIngreso.length === 0 && (
-                    <p className="col-span-full text-sm text-gray-500">No hay requisitos disponibles en el catálogo.</p>
-                  )}
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(250px,0.85fr)]">
+                  <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                    <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-gray-600">Lista de requisitos</p>
+                      <p className="mt-0.5 text-xs text-gray-500">Marca uno o varios requisitos</p>
+                    </div>
+                    <div className="max-h-64 divide-y divide-gray-100 overflow-y-auto">
+                      {catalogs.requisitosIngreso.map((requisito) => {
+                        const seleccionado = logisticaForm.requisitosIngreso.includes(requisito.id);
+                        return (
+                          <label key={requisito.id} className={`flex cursor-pointer items-center gap-3 px-4 py-3 text-sm transition-colors ${seleccionado ? "bg-[#f1f8f3] text-gray-900" : "text-gray-700 hover:bg-gray-50"}`}>
+                            <input type="checkbox" checked={seleccionado} onChange={(event) => setLogisticaField("requisitosIngreso", event.target.checked ? [...logisticaForm.requisitosIngreso, requisito.id] : logisticaForm.requisitosIngreso.filter((id) => id !== requisito.id))} className="h-4 w-4 rounded border-gray-300 text-[#5cb89a] focus:ring-[#5cb89a]" />
+                            <span className="flex-1">{requisito.name}</span>
+                            {seleccionado && <span className="text-xs font-semibold text-[#32876d]">Agregado</span>}
+                          </label>
+                        );
+                      })}
+                      {catalogs.requisitosIngreso.length === 0 && <p className="px-4 py-8 text-center text-sm text-gray-500">No hay requisitos disponibles en el catálogo.</p>}
+                    </div>
+                  </div>
+
+                  <aside className="rounded-xl border border-[#cfe4d6] bg-[#f8fcf9] p-4" aria-live="polite">
+                    <div className="flex items-center justify-between gap-2 border-b border-[#e0eee4] pb-3">
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-800">Seleccionados</h4>
+                        <p className="mt-0.5 text-xs text-gray-500">Requisitos que se incluirán</p>
+                      </div>
+                      <span className="rounded-full bg-[#e4f2e9] px-2.5 py-1 text-xs font-bold text-[#315747]">{logisticaForm.requisitosIngreso.length}</span>
+                    </div>
+                    {logisticaForm.requisitosIngreso.length === 0 ? (
+                      <p className="py-8 text-center text-sm text-gray-500">Aún no seleccionas requisitos.</p>
+                    ) : (
+                      <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto pr-1">
+                        {logisticaForm.requisitosIngreso.map((id) => {
+                          const requisito = catalogs.requisitosIngreso.find((item) => item.id === id);
+                          return (
+                            <li key={id} className="flex items-center justify-between gap-2 rounded-lg border border-[#e0eee4] bg-white px-3 py-2 text-sm text-gray-700">
+                              <span>{requisito?.name || id}</span>
+                              <button type="button" onClick={() => setLogisticaField("requisitosIngreso", logisticaForm.requisitosIngreso.filter((item) => item !== id))} className="rounded px-2 py-1 text-xs font-semibold text-gray-500 hover:bg-red-50 hover:text-red-700" aria-label={`Quitar ${requisito?.name || "requisito"}`}>Quitar</button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </aside>
                 </div>
                 {catalogs.requisitosIngreso.some((requisito) => normalizeHeader(requisito.name).includes("otro") && logisticaForm.requisitosIngreso.includes(requisito.id)) && (
                   <div className="mt-4 max-w-xl">
@@ -1391,59 +1692,7 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
                 )}
               </div>
             </section>
-            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-6 flex items-center gap-2 text-lg font-bold text-gray-900">
-                <Truck className="h-5 w-5 text-[#5cb89a]" />
-                Disponibilidad para recojo
-              </h2>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-
-                <Input
-                  label="Fecha desde"
-                  type="date"
-                  value={logisticaForm.fechaDesde}
-                  onChange={(e) =>
-                    setLogisticaField("fechaDesde", e.target.value)
-                  }
-                />
-
-                <Input
-                  label="Fecha hasta"
-                  type="date"
-                  value={logisticaForm.fechaHasta}
-                  onChange={(e) =>
-                    setLogisticaField("fechaHasta", e.target.value)
-                  }
-                />
-
-                <Input
-                  label="Horario disponible"
-                  value={logisticaForm.horarioDisponible}
-                  onChange={(e) =>
-                    setLogisticaField(
-                      "horarioDisponible",
-                      e.target.value
-                    )
-                  }
-                  placeholder="Ej. 09:00 - 17:00"
-                />
-
-                <Input
-                  label="Tiempo estimado de carga (min)"
-                  type="number"
-                  min="0"
-                  value={logisticaForm.tiempoEstimadoCarga}
-                  onChange={(e) =>
-                    setLogisticaField(
-                      "tiempoEstimadoCarga",
-                      e.target.value
-                    )
-                  }
-                />
-
-              </div>
-            </section>
+            
           </div>
         )}
 
@@ -1486,3 +1735,15 @@ export default function NuevaIntencion({ onCancelar, onGuardada }: Props) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

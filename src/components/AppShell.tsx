@@ -9,18 +9,23 @@ import {
   ChevronRight,
   ShoppingCart,
   ReceiptText,
+  Users,
+  ShieldCheck,
 } from "lucide-react";
 import logo from "../assets/logo.png";
 import type { LoginUser } from "../services/authService";
 
-export type ModuloKey = "menu" | "intencion" | "donacion" | "seguimiento";
+export type ModuloKey = "menu" | "donantes" | "nuevoDonante" | "intencion" | "donacion" | "seguimiento" | "gerencia";
 
 interface Props {
   moduloActivo: ModuloKey;
   onInicio: () => void;
+  onDonantes: () => void;
+  onNuevoDonante: () => void;
   onIntencion: () => void;
   onDonacion: () => void;
   onSeguimiento: () => void;
+  onGerencia: () => void;
   onCerrarSesion: () => void;
   children: React.ReactNode;
 }
@@ -30,21 +35,29 @@ interface Props {
 export default function AppShell({
   moduloActivo,
   onInicio,
+  onDonantes,
+  onNuevoDonante,
   onIntencion,
   onDonacion,
   onSeguimiento,
+  onGerencia,
   onCerrarSesion,
   children,
 }: Props) {
   const [user, setUser] = useState<LoginUser | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [pendingManagerApprovals, setPendingManagerApprovals] = useState(0);
   const [donacionesOpen, setDonacionesOpen] = useState(
-    moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento"
+    moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento" || moduloActivo === "gerencia"
   );
+  const [donantesOpen, setDonantesOpen] = useState(moduloActivo === "donantes" || moduloActivo === "nuevoDonante");
   const [comprasOpen, setComprasOpen] = useState(false);
 
   useEffect(() => {
-    if (moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento") {
+    if (moduloActivo === "donantes" || moduloActivo === "nuevoDonante") {
+      setDonantesOpen(true);
+    }
+    if (moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento" || moduloActivo === "gerencia") {
       setDonacionesOpen(true);
     }
   }, [moduloActivo]);
@@ -59,6 +72,23 @@ export default function AppShell({
     }
   }, []);
 
+  useEffect(() => {
+    const refreshPendingApprovals = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem("mock_intenciones") || "[]");
+        setPendingManagerApprovals(Array.isArray(stored) ? stored.filter((item: any) => String(item?.estado ?? "").toLowerCase() === "pendienteaprobaciongerencia").length : 0);
+      } catch {
+        setPendingManagerApprovals(0);
+      }
+    };
+    refreshPendingApprovals();
+    window.addEventListener("storage", refreshPendingApprovals);
+    window.addEventListener("intenciones-updated", refreshPendingApprovals);
+    return () => {
+      window.removeEventListener("storage", refreshPendingApprovals);
+      window.removeEventListener("intenciones-updated", refreshPendingApprovals);
+    };
+  }, []);
   const initials = (user?.fullName ?? "Usuario")
     .split(" ")
     .map((n) => n[0])
@@ -93,10 +123,40 @@ export default function AppShell({
           />
           <button
             type="button"
+            aria-expanded={donantesOpen}
+            onClick={() => setDonantesOpen((open) => !open)}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors ${
+              moduloActivo === "donantes" || moduloActivo === "nuevoDonante"
+                ? "bg-[#5cb89a]/10 text-[#32876d]"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            <Users className="h-4 w-4 text-[#5cb89a]" />
+            <span className="flex-1">Donantes</span>
+            {donantesOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          {donantesOpen && (
+            <div className="ml-4 space-y-1 border-l border-gray-200 pl-3">
+              <SidebarSubItem
+                icon={<Users className="h-4 w-4" />}
+                label="Listado de donantes"
+                active={moduloActivo === "donantes"}
+                onClick={onDonantes}
+              />
+              <SidebarSubItem
+                icon={<Users className="h-4 w-4" />}
+                label="Agregar donante"
+                active={moduloActivo === "nuevoDonante"}
+                onClick={onNuevoDonante}
+              />
+            </div>
+          )}
+          <button
+            type="button"
             aria-expanded={donacionesOpen}
             onClick={() => setDonacionesOpen((open) => !open)}
             className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors ${
-              moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento"
+              moduloActivo === "intencion" || moduloActivo === "donacion" || moduloActivo === "seguimiento" || moduloActivo === "gerencia"
                 ? "bg-[#5cb89a]/10 text-[#32876d]"
                 : "text-gray-700 hover:bg-gray-100"
             }`}
@@ -124,6 +184,13 @@ export default function AppShell({
                 label="Seguimiento"
                 active={moduloActivo === "seguimiento"}
                 onClick={onSeguimiento}
+              />
+              <SidebarSubItem
+                icon={<ShieldCheck className="h-4 w-4" />}
+                label="Aprobación de Gerencia"
+                active={moduloActivo === "gerencia"}
+                onClick={onGerencia}
+                badge={pendingManagerApprovals}
               />
             </div>
           )}
@@ -186,12 +253,14 @@ function SidebarSubItem({
   active = false,
   onClick,
   disabled = false,
+  badge = 0,
 }: {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
   onClick?: () => void;
   disabled?: boolean;
+  badge?: number;
 }) {
   return (
     <button
@@ -208,6 +277,7 @@ function SidebarSubItem({
     >
       <span className={active ? "text-[#5cb89a]" : "text-gray-400"}>{icon}</span>
       {label}
+      {badge > 0 && <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{badge}</span>}
       {disabled && <span className="ml-auto text-[10px] uppercase tracking-wide">Próximamente</span>}
     </button>
   );

@@ -14,6 +14,7 @@ import {
   MessageSquare,
   X,
   Check,
+  CheckCheck,
   ExternalLink,
   ImageIcon,
   Info,
@@ -24,10 +25,14 @@ import {
   PackageCheck
 } from "lucide-react";
 import { getIntenciones, getIntencionById, updateIntencionStatus } from "../services/intencionService";
+import SelectionPlaceholder from "../components/ui/SelectionPlaceholder";
 
 interface Props {
   onVolver: () => void;
 }
+
+type CommunicationStatus = "pending" | "sent" | "received";
+type Communication = { id: string; org: string; canal: "WhatsApp" | "Correo"; tipo: string; estado: CommunicationStatus; fecha: string };
 
 export default function CoordinacionPage({ onVolver }: Props) {
   const [intentions, setIntentions] = useState<any[]>([]);
@@ -36,6 +41,16 @@ export default function CoordinacionPage({ onVolver }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [isLogisticsModalOpen, setIsLogisticsModalOpen] = useState(false);
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [isCommunicationModalOpen, setIsCommunicationModalOpen] = useState(false);
+  const [beneficiaryPhone, setBeneficiaryPhone] = useState("");
+  const [beneficiaryEmail, setBeneficiaryEmail] = useState("");
+  const [communicationError, setCommunicationError] = useState("");
+  const [communicationNotice, setCommunicationNotice] = useState("");
+  const [communications, setCommunications] = useState<Communication[]>([
+  ]);
+
+  const beneficiaryName = intention?.organizacionAsignada?.nombre || "Organización no asignada";
+  const beneficiaryAddress = intention?.organizacionAsignada?.direccion || "Dirección no registrada";
 
   const VALIDACION_ITEMS = [
     "Notificación automática programada para todas las partes",
@@ -86,6 +101,32 @@ export default function CoordinacionPage({ onVolver }: Props) {
 
   const handleSaveDraft = () => {
     alert("💾 Borrador guardado correctamente.");
+  };
+
+  const openCommunicationDraft = (canal: Communication["canal"]) => {
+    const org = intention?.organizacionAsignada?.nombre || "Organización no asignada";
+    const reference = intention?.codigo ? ` para la intención ${intention.codigo}` : "";
+    const body = `Hola, ${org}. Le escribimos para coordinar el rescate de la donación${reference}. Por favor confirme la recepción de este mensaje.`;
+    const now = new Date();
+    const fecha = `${getLocalDateISO()} ${now.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+    if (canal === "WhatsApp") {
+      const phone = beneficiaryPhone.replace(/\D/g, "");
+      if (phone.length < 8) { setCommunicationError("Ingresa un número de WhatsApp válido, incluido el código de país."); return; }
+      setCommunications((items) => [{ id: `communication-${Date.now()}`, org, canal, tipo: `Coordinación de rescate · ${intention?.codigo || "donación"}`, estado: "pending", fecha }, ...items]);
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(body)}`, "_blank", "noopener,noreferrer");
+    } else {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(beneficiaryEmail)) { setCommunicationError("Ingresa un correo electrónico válido."); return; }
+      setCommunications((items) => [{ id: `communication-${Date.now()}`, org, canal, tipo: `Coordinación de rescate · ${intention?.codigo || "donación"}`, estado: "pending", fecha }, ...items]);
+      window.location.href = `mailto:${beneficiaryEmail}?subject=${encodeURIComponent("Coordinación de rescate")}&body=${encodeURIComponent(body)}`;
+    }
+    setCommunicationError("");
+    setCommunicationNotice(`Se abrió un borrador de ${canal}. Al enviarlo, marca “Enviado” en la bitácora.`);
+    setIsCommunicationModalOpen(false);
+  };
+
+  const updateCommunicationStatus = (id: string, estado: Exclude<CommunicationStatus, "pending">) => {
+    setCommunications((items) => items.map((item) => item.id === id ? { ...item, estado } : item));
+    setCommunicationNotice(estado === "sent" ? "Comunicación marcada como enviada." : "Recepción confirmada manualmente.");
   };
 
   return (
@@ -163,24 +204,18 @@ export default function CoordinacionPage({ onVolver }: Props) {
         {/* MAIN CONTENT */}
         <div className="lg:col-span-9">
           {!intention ? (
-            <div className="h-full min-h-[60vh] rounded-3xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center text-center p-12">
-              {isLoading ? (
+            isLoading ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-3xl border border-[#e2ebe5] bg-white text-[#64756b]">
+
                 <div className="flex flex-col items-center gap-4">
                   <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#5cb89a] border-t-transparent" />
                   <p className="text-sm font-medium text-gray-500">Buscando datos de la donación...</p>
                 </div>
-              ) : (
-                <>
-                  <div className="p-4 rounded-full bg-gray-50 mb-4">
-                    <Info className="h-12 w-12 text-gray-300" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-800">Ninguna donación seleccionada</h3>
-                  <p className="text-sm text-gray-500 max-w-xs mx-auto mt-2">
-                    Por favor, elige una donación del panel izquierdo para gestionar su coordinación de rescate.
-                  </p>
-                </>
-              )}
-            </div>
+              
+              </div>
+            ) : (
+              <SelectionPlaceholder />
+            )
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
@@ -243,14 +278,14 @@ export default function CoordinacionPage({ onVolver }: Props) {
                       <Building2 className="h-8 w-8 text-emerald-300" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 text-lg truncate">Comedor Popular San Juan</p>
-                      <p className="text-xs text-gray-500 truncate mb-3">Av. Las Palmeras 456, Miraflores, Lima</p>
+                      <p className="font-bold text-gray-900 text-lg truncate">{beneficiaryName}</p>
+                      <p className="text-xs text-gray-500 truncate mb-3">{beneficiaryAddress}</p>
                       <div className="grid grid-cols-1 gap-2">
                         <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
-                          <Phone className="h-3.5 w-3.5 text-gray-400" /> +51 987 654 321
+                          <Phone className="h-3.5 w-3.5 text-gray-400" /> {beneficiaryPhone || "Teléfono no registrado"}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
-                          <Mail className="h-3.5 w-3.5 text-gray-400" /> contacto@comedor.org
+                          <Mail className="h-3.5 w-3.5 text-gray-400" /> {beneficiaryEmail || "Correo no registrado"}
                         </div>
                       </div>
                     </div>
@@ -286,11 +321,12 @@ export default function CoordinacionPage({ onVolver }: Props) {
                   <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800 uppercase tracking-wide">
                     <MessageSquare className="h-4 w-4 text-[#5cb89a]" /> Bitácora de Comunicaciones
                   </h2>
-                  <button className="px-4 py-1.5 text-xs font-bold text-white bg-[#5cb89a] hover:bg-[#4a9a82] rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-2">
+                  <button onClick={() => { setCommunicationError(""); setIsCommunicationModalOpen(true); }} className="px-4 py-1.5 text-xs font-bold text-white bg-[#5cb89a] hover:bg-[#4a9a82] rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-2">
                     <Send className="h-3 w-3" /> Reenviar Pendientes
                   </button>
                 </div>
                 <div className="p-0">
+                  {communicationNotice && <p role="status" className="border-b border-emerald-100 bg-emerald-50 px-6 py-3 text-xs font-medium text-emerald-800">{communicationNotice}</p>}
                   <table className="min-w-full divide-y divide-gray-100">
                     <thead className="bg-gray-50/50">
                       <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">
@@ -299,41 +335,31 @@ export default function CoordinacionPage({ onVolver }: Props) {
                         <th className="px-6 py-3">Mensaje</th>
                         <th className="px-6 py-3 text-center">Estado</th>
                         <th className="px-6 py-3 text-right">Enviado el</th>
+<th className="px-6 py-3 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {[
-                        { org: "Comedor Popular San Juan", canal: "WhatsApp", tipo: "Confirmación de Rescate", estado: "entregado", fecha: `${getLocalDateISO()} 08:00` },
-                        { org: "Comedor Popular San Juan", canal: "Correo", tipo: "Guía de Remisión", estado: "enviado", fecha: `${getLocalDateISO()} 08:05` },
-                      ].map((msg, i) => (
-                        <tr key={i} className="hover:bg-gray-50/50 transition-colors group">
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{msg.org}</td>
-                          <td className="px-6 py-4">
-                            <span className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 font-medium">{msg.canal}</span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">{msg.tipo}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {msg.estado === "entregado" ? (
-                                <div className="flex gap-0.5 text-blue-500">
-                                  <Check className="h-3.5 w-3.5" />
-                                  <Check className="h-3.5 w-3.5" />
-                                </div>
-                              ) : (
-                                <Check className="h-3.5 w-3.5 text-gray-300" />
-                              )}
-                              <span className="text-[11px] font-bold text-gray-500 uppercase">{msg.estado}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-right text-xs text-gray-400 font-mono">{msg.fecha}</td>
-                        </tr>
-                      ))}
-                    </tbody>
+  {communications.map((msg) => (
+    <tr key={msg.id} className="hover:bg-gray-50/50 transition-colors">
+      <td className="px-6 py-4 text-sm font-medium text-gray-900">{msg.org}</td>
+      <td className="px-6 py-4"><span className="text-xs px-2 py-1 rounded-md bg-gray-100 text-gray-600 font-medium">{msg.canal}</span></td>
+      <td className="px-6 py-4 text-sm text-gray-500">{msg.tipo}</td>
+      <td className="px-6 py-4"><div className="flex items-center justify-center gap-1.5">
+        {msg.estado === "received" ? <CheckCheck className="h-4 w-4 text-blue-500" /> : msg.estado === "sent" ? <Check className="h-4 w-4 text-emerald-500" /> : <Clock className="h-4 w-4 text-amber-500" />}
+        <span className="text-[11px] font-bold text-gray-600">{msg.estado === "received" ? "Recibido" : msg.estado === "sent" ? "Enviado" : "Pendiente"}</span>
+      </div></td>
+      <td className="px-6 py-4 text-right text-xs text-gray-400 font-mono">{msg.fecha}</td>
+      <td className="px-6 py-4 text-right">
+        {msg.estado === "pending" ? <button onClick={() => updateCommunicationStatus(msg.id, "sent")} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">Marcar enviado</button> : msg.estado === "sent" ? <button onClick={() => updateCommunicationStatus(msg.id, "received")} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">Confirmar recibido</button> : <span className="text-xs text-gray-400">Confirmado</span>}
+      </td>
+    </tr>
+  ))}
+</tbody>
                   </table>
                 </div>
                 <div className="p-4 bg-amber-50 border-t border-amber-100 flex items-center gap-3 text-xs text-amber-800">
                   <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-                  <p className="font-medium">Las comunicaciones se envían automáticamente según la configuración de contacto de cada destinatario.</p>
+                  <p className="font-medium">Un check indica Enviado y dos checks Recibido. Confirma los estados después de enviar o verificar la recepción por el canal elegido.</p>
                 </div>
               </section>
 
@@ -361,7 +387,7 @@ export default function CoordinacionPage({ onVolver }: Props) {
                       <div className="mt-1"><Building2 className="h-4 w-4 text-emerald-400" /></div>
                       <div>
                         <p className="text-[10px] font-bold text-emerald-400 uppercase">Punto de Entrega</p>
-                        <p className="text-sm font-medium text-emerald-900">Comedor Popular San Juan - Av. Las Palmeras 456, Miraflores</p>
+                        <p className="text-sm font-medium text-emerald-900">{beneficiaryName} · {beneficiaryAddress}</p>
                       </div>
                     </div>
                   </div>
@@ -469,6 +495,32 @@ export default function CoordinacionPage({ onVolver }: Props) {
         </div>
       </div>
 
+      {isCommunicationModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-950/60 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsCommunicationModalOpen(false); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="communication-modal-title" className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
+              <div><p className="text-xs font-bold uppercase tracking-wider text-[#5cb89a]">Bitácora de comunicaciones</p><h3 id="communication-modal-title" className="mt-1 text-lg font-bold text-gray-900">Reenviar coordinación</h3></div>
+              <button type="button" aria-label="Cerrar" onClick={() => setIsCommunicationModalOpen(false)} className="rounded-full p-2 text-gray-400 hover:bg-gray-100"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-4 p-6">
+              <p className="text-sm text-gray-600">Elige cómo contactar a {beneficiaryName}. Se abrirá un borrador para que revises y envíes el mensaje.</p>
+              <label className="block text-xs font-semibold text-gray-700">Número de WhatsApp
+                <input value={beneficiaryPhone} onChange={(event) => setBeneficiaryPhone(event.target.value)} placeholder="+51 999 999 999" className="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-[#5cb89a] focus:ring-2 focus:ring-[#5cb89a]/20" />
+              </label>
+              <label className="block text-xs font-semibold text-gray-700">Correo electrónico
+                <input type="email" value={beneficiaryEmail} onChange={(event) => setBeneficiaryEmail(event.target.value)} placeholder="contacto@organizacion.org" className="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-[#5cb89a] focus:ring-2 focus:ring-[#5cb89a]/20" />
+              </label>
+              {communicationError && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{communicationError}</p>}
+              <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
+                <button type="button" onClick={() => openCommunicationDraft("WhatsApp")} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#20a867] px-4 py-3 text-sm font-bold text-white hover:bg-[#188753]"><MessageSquare className="h-4 w-4" /> Abrir WhatsApp</button>
+                <button type="button" onClick={() => openCommunicationDraft("Correo")} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#315747] px-4 py-3 text-sm font-bold text-white hover:bg-[#244536]"><Mail className="h-4 w-4" /> Redactar correo</button>
+              </div>
+              <p className="text-xs leading-relaxed text-gray-500">Después de enviarlo, marca “Enviado” en la bitácora. La confirmación de recepción se registra manualmente.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* LOGISTICS MODAL */}
       {isLogisticsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm">
@@ -530,3 +582,4 @@ function InfoField({ label, value, mono = false, color = "text-gray-900", isBadg
     </div>
   );
 }
+

@@ -9,15 +9,34 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 function getStoredIntenciones(): Intencion[] {
   const stored = localStorage.getItem(STORAGE_KEY);
+  let storedItems: Intencion[] = [];
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) storedItems = parsed;
     } catch (e) {
       console.error("Error parsing stored intentions", e);
-      return INITIAL_INTENCIONES;
     }
   }
-  return INITIAL_INTENCIONES;
+
+  // Keep the workflow test fixtures visible while allowing their saved status
+  // and any locally created intentions to take precedence.
+  const merged = new Map<string, Intencion>();
+  INITIAL_INTENCIONES.forEach((item) => merged.set(item.id, item as Intencion));
+  storedItems.forEach((item) => {
+    if (item?.id) merged.set(item.id, item);
+  });
+  const assignmentFixture = INITIAL_INTENCIONES.find((item) => item.id === "test-asignacion");
+  if (assignmentFixture) {
+    merged.set("test-asignacion-preview", {
+      ...assignmentFixture,
+      id: "test-asignacion-preview",
+      codigo: "INT-ASIGNACION-PREVIEW",
+      donante: "Donante de prueba para asignacion",
+      estado: "AprobadaLogistica",
+    } as Intencion);
+  }
+  return [...merged.values()];
 }
 
 function setStoredIntenciones(data: Intencion[]) {
@@ -154,6 +173,11 @@ export async function saveIntencion(
     supplierName: data.donante,
     contacto: data.contacto || null,
     fecha: data.fechaIntencion,
+    modalidadIntencion: data.modalidadIntencion || "Normal",
+    ...(data.modalidadIntencion === "Campaña" ? {
+      campaignStartDate: data.fechaInicioCampania,
+      campaignEndDate: data.fechaFinCampania,
+    } : {}),
     channelId: catalogId(catalogs.canales, data.canal),
     responsable: data.responsable,
     intentTypeId: catalogId(catalogs.tiposIntencion, data.tipoIntencion),
@@ -341,6 +365,16 @@ const displayCatalogValue = (value: any, catalogs: ReturnType<typeof catalogStor
   return match?.name ?? id;
 };
 
+export const isCampaignIntent = (intent: any): boolean => {
+  const modality = String(intent?.modalidadIntencion ?? intent?.intentMode ?? intent?.campaignMode ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return modality.includes("campan") || intent?.isCampaign === true || Boolean(
+    intent?.fechaInicioCampania || intent?.fechaFinCampania || intent?.campaignStartDate || intent?.campaignEndDate
+  );
+};
+
 const mapApiIntent = (raw: any, index: number): Intencion => {
   const catalogs = catalogStore.getState();
   const logistic = readField(raw, "infoLogistic", "logistics", "logistica") ?? {};
@@ -351,6 +385,12 @@ const mapApiIntent = (raw: any, index: number): Intencion => {
   const intentTypeId = readField(raw, "intentTypeId", "intentionTypeId", "intentType", "tipoIntencion");
   const date = readField(raw, "fechaIntencion", "fecha", "intentDate", "intentionDate", "createdAt", "date");
   const status = readField(raw, "status", "statusName", "statusCode", "estado");
+  const campaignStart = readField(raw, "campaignStartDate", "fechaInicioCampania", "campaignStart");
+  const campaignEnd = readField(raw, "campaignEndDate", "fechaFinCampania", "campaignEnd");
+  const rawModality = readField(raw, "modalidadIntencion", "intentMode", "campaignMode");
+  const isCampaign = rawModality === true || readField(raw, "isCampaign") === true ||
+    String(rawModality ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes("campan") ||
+    Boolean(campaignStart || campaignEnd);
   const dateText = date ? String(date).slice(0, 10) : "";
   const flags = {
     envase_integro: Boolean(readField(quality, "packagingIntact", "envase_integro")),
@@ -374,6 +414,9 @@ const mapApiIntent = (raw: any, index: number): Intencion => {
       : catalogs.origins.find((item) => item.id.toLowerCase() === String(channelId ?? "").toLowerCase())?.name ?? String(channelId ?? "")) as any,
     responsable: String(readField(raw, "responsable", "responsible", "createdBy") ?? ""),
     tipoIntencion: displayCatalogValue(intentTypeId, catalogs, "tiposIntencion") as any,
+    modalidadIntencion: isCampaign ? "Campaña" : "Normal",
+    fechaInicioCampania: campaignStart ? String(campaignStart).slice(0, 10) : undefined,
+    fechaFinCampania: campaignEnd ? String(campaignEnd).slice(0, 10) : undefined,
     estado: estado as any,
     productos: [],
     calidad: {
@@ -415,11 +458,17 @@ const mapApiIntent = (raw: any, index: number): Intencion => {
 
 export async function getIntenciones(): Promise<Intencion[]> {
   const token = getToken();
-  const response = await axios.get(`${API_BASE_URL}/Intents/GetIntents`, {
-    headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    withCredentials: true,
-  });
-  const rows = unwrapIntentList(response.data).map(mapApiIntent);
+  let rows: Intencion[] = [];
+  try {
+    const response = await axios.get(`${API_BASE_URL}/Intents/GetIntents`, {
+      headers: { Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      withCredentials: true,
+    });
+    rows = unwrapIntentList(response.data).map(mapApiIntent);
+  } catch (error) {
+    // Keep local workflow fixtures usable when the intents API is unavailable.
+    console.warn("No se pudieron cargar intenciones desde la API; se mostrarán los datos locales.", error);
+  }
   // Keep local test fixtures available in every workflow alongside API data.
   // Local entries win on duplicate IDs so simulated status changes persist.
   const merged = new Map<string, Intencion>();
@@ -460,6 +509,21 @@ export async function updateIntencionStatus(id: string, status: number | string)
   return updated[index];
 }
 
+export async function updateIntencionWorkflow(id: string, changes: Record<string, unknown>) {
+  let current = getStoredIntenciones();
+  let index = current.findIndex((item) => item.id === id);
+  if (index < 0) {
+    const fromApi = (await getIntenciones()).find((item) => item.id === id);
+    if (!fromApi) throw new Error("Intención no encontrada");
+    current = [...current, fromApi];
+    index = current.length - 1;
+  }
+  const updatedItem = { ...current[index], ...changes } as Intencion;
+  current[index] = updatedItem;
+  setStoredIntenciones(current);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("intenciones-updated"));
+  return updatedItem;
+}
 export async function getRecommendations(id: string) {
   return MOCK_ORGANIZACIONES.map(org => {
     let score = 60;

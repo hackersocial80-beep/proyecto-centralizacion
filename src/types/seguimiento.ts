@@ -3,7 +3,42 @@
 // organizacion asignada. La timeline sigue las 6 fases operativas.
 
 import type { Donacion } from "./donacion";
+import type { Intencion } from "./intencion";
 
+// Las organizaciones asignadas y las opciones disponibles en Distribución
+// se enlazan con la intención que está recorriendo el proceso.
+export function organizacionesDesdeIntenciones(
+  intenciones: Intencion[],
+  candidatas: Array<{ Id: number | string; Nombre: string; Direccion: string; HistorialCumplimiento?: number }> = []
+): Organizacion[] {
+  return intenciones.flatMap((intencion, index) => {
+    const asignada = (intencion as Intencion & { organizacionAsignada?: { id?: string; nombre: string; direccion?: string; compatibilidad?: string; conformidadPorcentaje?: number } }).organizacionAsignada;
+    const estado = String(intencion.estado ?? "").toLowerCase();
+    const seed = Array.from(intencion.id || String(index + 1)).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const vencimiento = intencion.productos?.map((producto) => producto.vidaUtil).filter(Boolean).sort()[0] ?? "";
+    const completadas = estado === "5" || estado === "cerrada" ? 6 : estado === "4" || estado === "coordinada" ? 5 : estado === "3" || estado === "asignada" ? 3 : 2;
+    const construir = (org: { id: string; nombre: string; direccion: string; compatibilidad: string; cumplimiento: number }, id: string, asignacion: string) => ({
+      id, nombre: org.nombre, direccion: org.direccion || "-", compatibilidad: org.compatibilidad,
+      asignacion, donacionId: intencion.id,
+      conformidadPorcentaje: Math.max(0, Math.min(100, org.cumplimiento)), vencimientoProducto: vencimiento,
+      coordenadas: { x: 18 + (seed * 13) % 60, y: 22 + (seed * 7) % 55 }, bapOrigen: { x: 12, y: 78 },
+      timeline: ETAPAS_SEGUIMIENTO.map((etapa, etapaIndex) => ({ etapa, completado: etapaIndex < completadas, fecha: etapaIndex === 2 ? intencion.fechaAsignacion : undefined, responsable: etapaIndex === 2 ? intencion.responsable : undefined, nota: etapaIndex === 2 ? `Organización vinculada a la intención ${intencion.codigo}.` : undefined })),
+    });
+
+    if (asignada?.nombre) {
+      const cumplimiento = Number(asignada.conformidadPorcentaje ?? 0);
+      return [construir({ nombre: asignada.nombre, direccion: asignada.direccion || "", compatibilidad: asignada.compatibilidad || "Media", cumplimiento: Number.isFinite(cumplimiento) ? cumplimiento : 0 }, asignada.id || `org-${intencion.id}`, intencion.codigo)];
+    }
+
+    // Las intenciones aprobadas por Logística ya aparecen asociadas a las
+    // organizaciones seleccionables en Distribución, pendientes de asignación.
+    if (!["2", "aprobadalogistica"].includes(estado)) return [];
+    return candidatas.map((org) => {
+      const compliance = Number(org.HistorialCumplimiento ?? 0);
+      return construir({ id: String(org.Id), nombre: org.Nombre, direccion: org.Direccion, compatibilidad: compliance >= 0.85 ? "Alta" : compliance >= 0.65 ? "Media" : "Baja", cumplimiento: compliance <= 1 ? compliance * 100 : compliance }, `org-${org.Id}-${intencion.id}`, `${intencion.codigo} · Pendiente de asignación`);
+    });
+  });
+}
 export type EtapaSeguimiento =
   | "Calidad"
   | "Logistica"
@@ -112,3 +147,6 @@ export function organizacionesDesdeDonaciones(
       };
     });
 }
+
+
+

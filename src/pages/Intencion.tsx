@@ -36,6 +36,7 @@ export default function IntencionPage({
   const catalogoCanales = catalogs.canales;
   const latestIntentId = useRef(intenciones[0]?.id ?? null);
   const [filtros, setFiltros] = useState<FiltrosIntencion>(FILTROS_VACIOS);
+  const [donanteSeleccionado, setDonanteSeleccionado] = useState<{ id: string; name: string } | null>(null);
   const [seleccionadaId, setSeleccionadaId] = useState<string | null>(
     intenciones[0]?.id ?? null
   );
@@ -77,7 +78,8 @@ export default function IntencionPage({
     const q = busqueda.trim().toLowerCase();
     return intenciones.filter((i) => {
       if (filtros.donante) {
-        const selectedSupplier = catalogs.proveedores.find((supplier) => supplier.id === filtros.donante);
+        const selectedSupplier = catalogs.proveedores.find((supplier) => supplier.id === filtros.donante)
+          ?? (donanteSeleccionado?.id === filtros.donante ? donanteSeleccionado : null);
         const donorValue = i.donante.trim().toLowerCase();
         if (
           donorValue !== filtros.donante.trim().toLowerCase() &&
@@ -108,7 +110,7 @@ export default function IntencionPage({
         return false;
       return true;
     });
-  }, [intenciones, filtros, busqueda, catalogoCanales, catalogs.proveedores, catalogs.tiposIntencion]);
+  }, [intenciones, filtros, busqueda, catalogoCanales, catalogs.proveedores, catalogs.tiposIntencion, donanteSeleccionado]);
 
   useEffect(() => {
     if (seleccionadaId && !filtradas.some((intencion) => intencion.id === seleccionadaId)) {
@@ -143,6 +145,8 @@ export default function IntencionPage({
           filtros={filtros}
           origins={catalogoCanales}
           suppliers={catalogs.proveedores}
+          selectedSupplier={donanteSeleccionado}
+          onSupplierSelected={setDonanteSeleccionado}
           intentionTypes={catalogs.tiposIntencion}
           onChange={setFiltros}
           onNuevaIntencion={onNuevaIntencion}

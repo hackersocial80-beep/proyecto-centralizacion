@@ -5,16 +5,19 @@ import {
   ReceiptText,
   Route,
   ShoppingCart,
+  Users,
 } from "lucide-react";
 
 interface Props {
   onIntencion: () => void;
+  onDonantes: () => void;
   onDonacion: () => void;
   onSeguimiento: () => void;
 }
 
 export default function MenuPrincipal({
   onIntencion,
+  onDonantes,
   onDonacion,
   onSeguimiento,
 }: Props) {
@@ -40,7 +43,13 @@ export default function MenuPrincipal({
                 <p className="text-sm text-gray-500">Intenciones, donaciones registradas y seguimiento.</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <ModuloCard
+                titulo="Donantes"
+                descripcion="Consulta el catálogo de donantes."
+                icon={<Users className="h-6 w-6" />}
+                onClick={onDonantes}
+              />
               <ModuloCard
                 titulo="Intención de donación"
                 descripcion="Registra y consulta las intenciones de donación."

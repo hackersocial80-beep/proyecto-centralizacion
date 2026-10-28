@@ -47,10 +47,14 @@ export async function fetchCatalogs(): Promise<any> {
   return result.success ? result.data : null;
 }
 
-export async function fetchSuppliers(): Promise<any[]> {
-  let response = await safeFetch(`${API_BASE_URL}/Commons/suppliers`);
+export async function fetchSuppliers(searchTerm = ""): Promise<any[]> {
+  const query = searchTerm.trim()
+    ? `?search=${encodeURIComponent(searchTerm.trim())}`
+    : "";
+  const url = `${API_BASE_URL}/Commons/suppliers${query}`;
+  let response = await safeFetch(url);
   if (response.status === 401) {
-    response = await safeFetch(`${API_BASE_URL}/Commons/suppliers`, false);
+    response = await safeFetch(url, false);
   }
   if (!response.ok) {
     const errorText = await response.text();
@@ -65,6 +69,88 @@ export async function fetchSuppliers(): Promise<any[]> {
   if (Array.isArray(data?.items)) return data.items;
   if (Array.isArray(result?.suppliers)) return result.suppliers;
   return [];
+}
+
+export interface CreateSupplierInput {
+  supplierType: string;
+  commercialName: string;
+  supplierName: string;
+  companyType: string;
+  supplierRuc: string;
+  email: string;
+  primaryPhone: string;
+  secondaryPhone: string;
+  website: string;
+  sectorActivity: string;
+  statusCode: string;
+  observations: string;
+  contacts: Array<{
+    contactType: "Principal" | "Secundario";
+    fullName: string;
+    position: string;
+    email: string;
+    mobilePhone: string;
+    landline: string;
+    whatsapp: string;
+    responsibilities: string;
+  }>;
+  addresses: Array<{
+    typeAddressId: string;
+    addressName: string;
+    description: string;
+    departmentCode: string;
+    provinceCode: string;
+    districtCode: string;
+    address: string;
+    reference: string;
+    postalCode: string;
+    latitude: number;
+    longitude: number;
+    accessTypeId: string;
+    plantHoursFrom: string;
+    plantHoursTo: string;
+    attentionDays: string[];
+    requiresAuthorization: boolean;
+    leadTimeId: string;
+    entryRequirements: string[];
+    pickupWindowFrom: string;
+    pickupWindowTo: string;
+    estimatedLoadingTime: string;
+    siteContactName: string;
+    authorizationContactName: string;
+    authorizationContactPhone: string;
+    accessObservations: string;
+  }>;
+}
+
+export async function createSupplier(input: CreateSupplierInput) {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/Commons/suppliers`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+    body: JSON.stringify(input),
+  });
+
+  const responseText = await response.text();
+  let result: any = null;
+  try {
+    result = responseText ? JSON.parse(responseText) : null;
+  } catch {
+    result = responseText;
+  }
+
+  if (!response.ok || result?.success === false) {
+    const message = typeof result === "string"
+      ? result
+      : result?.message || result?.title || `Error ${response.status} al registrar el donante.`;
+    throw new Error(message);
+  }
+  return result?.data ?? result;
 }
 
 export async function fetchDepartments(): Promise<any[]> {

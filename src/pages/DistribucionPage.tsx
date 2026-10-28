@@ -15,7 +15,8 @@ import {
   ClipboardList,
   X
 } from "lucide-react";
-import { getIntenciones, getIntencionById, getRecommendations, updateIntencionStatus } from "../services/intencionService";
+import { getIntenciones, getIntencionById, getRecommendations, updateIntencionWorkflow } from "../services/intencionService";
+import SelectionPlaceholder from "../components/ui/SelectionPlaceholder";
 
 interface Props {
   onVolver: () => void;
@@ -28,12 +29,25 @@ export default function DistribucionPage({ onVolver }: Props) {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const [assignmentFeedback, setAssignmentFeedback] = useState<{ success: boolean; message: string } | null>(null);
+
+  const pickupMapQuery = (() => {
+    const logistics = intention?.logistica;
+    const pickup = intention?.productos?.find((product: any) => product?.direccion || product?.latitud || product?.longitud);
+    const lat = logistics?.latitud || pickup?.latitud || intention?.latitud;
+    const lon = logistics?.longitud || pickup?.longitud || intention?.longitud;
+    const hasCoordinates = lat !== undefined && lat !== null && String(lat).trim() !== "" &&
+      lon !== undefined && lon !== null && String(lon).trim() !== "" &&
+      Number.isFinite(Number(lat)) && Number.isFinite(Number(lon));
+    return hasCoordinates ? `${lat},${lon}` : String(logistics?.direccion || pickup?.direccion || intention?.direccion || intention?.pickupAddress || "").trim();
+  })();
 
   useEffect(() => {
     async function load() {
       try {
         const data = await getIntenciones();
-        const filtered = data.filter((i: any) => i.estado === 2 || i.estado === "AprobadaLogistica");
+        const filtered = data.filter((i: any) => i.estado === 2 || i.estado === "AprobadaLogistica" || i.id === "test-asignacion-preview");
         setIntentions(filtered);
       } catch (e) {
         console.error("Error loading intentions", e);
@@ -60,18 +74,34 @@ export default function DistribucionPage({ onVolver }: Props) {
   };
 
   const handleAssign = async (orgId: number) => {
+    const recommendation = recommendations.find((item: any) => String(item?.Organizacion?.Id) === String(orgId));
+    const source = recommendation?.Organizacion;
+    if (!source) {
+      setAssignmentFeedback({ success: false, message: "No se encontró la organización seleccionada." });
+      return;
+    }
     try {
-      await updateIntencionStatus(selectedId, 3);
-      alert(`Donación asignada exitosamente a la organización ID: ${orgId}`);
+      const compatibility = Number(recommendation.Compatibility ?? 0);
+      await updateIntencionWorkflow(selectedId, {
+        estado: 3,
+        organizacionAsignada: {
+          id: String(source.Id ?? orgId),
+          nombre: String(source.Nombre ?? source.Name ?? "Organización sin nombre"),
+          direccion: String(source.Direccion ?? source.Address ?? intention?.logistica?.direccion ?? ""),
+          compatibilidad: compatibility >= 85 ? "Alta" : compatibility >= 65 ? "Media" : "Baja",
+          conformidadPorcentaje: Number(source.HistorialCumplimiento ?? compatibility),
+        },
+        fechaAsignacion: new Date().toISOString(),
+      });
       const data = await getIntenciones();
-      setIntentions(data.filter((i: any) => i.estado === 2 || i.estado === "AprobadaLogistica"));
+      setIntentions(data.filter((i: any) => i.estado === 2 || i.estado === "AprobadaLogistica" || i.id === "test-asignacion-preview"));
       setIntention(null);
       setSelectedId("");
+      setAssignmentFeedback({ success: true, message: `La donación fue asignada a ${source.Nombre ?? source.Name ?? `la organización ${orgId}`} y aparecerá en el seguimiento.` });
     } catch (e) {
-      alert("Error al asignar organización");
+      setAssignmentFeedback({ success: false, message: "No se pudo asignar la donación. Inténtalo nuevamente." });
     }
   };
-
   return (
     <div className="space-y-6 px-6 py-6 lg:px-10">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -125,16 +155,18 @@ export default function DistribucionPage({ onVolver }: Props) {
 
         <div className="lg:col-span-3 space-y-6">
           {!intention ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-20 text-center text-gray-500">
-              {isLoading ? (
+            isLoading ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-3xl border border-[#e2ebe5] bg-white text-[#64756b]">
+
                 <div className="flex flex-col items-center gap-3">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#5cb89a] border-t-transparent" />
                   <p className="text-sm">Cargando datos de distribución...</p>
                 </div>
-              ) : (
-                <p className="text-sm">Selecciona una donación para iniciar el proceso de asignación.</p>
-              )}
-            </div>
+              
+              </div>
+            ) : (
+              <SelectionPlaceholder />
+            )
           ) : (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -170,13 +202,13 @@ export default function DistribucionPage({ onVolver }: Props) {
                     Ubicación de Recojo
                   </h3>
                   <p className="text-sm text-gray-800 mb-3">{intention.logistica?.direccion || "No especificada"}</p>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${intention.logistica?.direccion}`}
-                    target="_blank"
+                  <button
+                    type="button"
+                    onClick={() => setIsMapOpen(true)}
                     className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
                   >
                     <ExternalLink className="h-3 w-3" /> Ver en Mapa
-                  </a>
+                  </button>
                 </div>
                 <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                   <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
@@ -355,6 +387,54 @@ export default function DistribucionPage({ onVolver }: Props) {
           </div>
         </div>
       )}
+
+      {isMapOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={() => setIsMapOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ubicación de recojo en el mapa"
+            className="w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Ubicación de recojo</h2>
+                <p className="mt-1 text-sm text-gray-500">{intention?.logistica?.direccion || pickupMapQuery}</p>
+              </div>
+              <button type="button" onClick={() => setIsMapOpen(false)} aria-label="Cerrar mapa" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {pickupMapQuery ? (
+              <iframe
+                title="Mapa de ubicación de recojo"
+                src={`https://www.google.com/maps?q=${encodeURIComponent(pickupMapQuery)}&output=embed`}
+                className="h-[65vh] min-h-[320px] w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            ) : (
+              <div className="p-10 text-center text-sm text-gray-500">No hay una dirección o coordenadas disponibles para mostrar el mapa.</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {assignmentFeedback && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" onClick={() => setAssignmentFeedback(null)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="assignment-feedback-title" className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${assignmentFeedback.success ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"}`}>
+              {assignmentFeedback.success ? <CheckCircle className="h-6 w-6" /> : <Info className="h-6 w-6" />}
+            </div>
+            <h2 id="assignment-feedback-title" className="mt-4 text-lg font-semibold text-gray-900">{assignmentFeedback.success ? "Asignación completada" : "No se pudo completar"}</h2>
+            <p className="mt-2 text-sm text-gray-600">{assignmentFeedback.message}</p>
+            <button type="button" onClick={() => setAssignmentFeedback(null)} className="mt-6 rounded-lg bg-[#5cb89a] px-5 py-2 text-sm font-semibold text-white hover:bg-[#4a9a82]">Aceptar</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+

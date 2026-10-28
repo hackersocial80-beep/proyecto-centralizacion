@@ -173,7 +173,7 @@ export default function DetalleIntencion({
 
         <div>
           <h3 className="text-sm font-semibold text-gray-900 mb-3">
-            Compromiso de idoneidad
+            Compromiso de idoneidad del Donante
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -628,3 +628,4 @@ export default function DetalleIntencion({
     </div>
   );
 }
+

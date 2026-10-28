@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, ShieldCheck, Truck, PackageCheck, CalendarCheck, CheckCircle2 } from "lucide-react";
 import GridOrganizaciones from "../components/seguimiento/GridOrganizaciones";
 import DetalleSeguimiento from "../components/seguimiento/DetalleSeguimiento";
@@ -12,24 +12,52 @@ import FiltrosSeguimiento, {
   FILTROS_SEGUIMIENTO_VACIOS,
   type FiltrosSeguimiento as Filtros,
 } from "../components/seguimiento/FiltrosSeguimiento";
-import { useDonaciones } from "../services/donacionStore";
-import { organizacionesDesdeDonaciones } from "../types/seguimiento";
+
+
+import { getIntenciones } from "../services/intencionService";
+import { organizacionesDesdeIntenciones } from "../types/seguimiento";
+import { MOCK_ORGANIZACIONES } from "../services/mockData";
 
 type SubScreen = "seguimiento" | "calidad" | "logistica" | "distribucion" | "coordinacion" | "cierre";
 
+type IntentStatusView = { stage: string; status: string; tone: string };
+
+function getIntentStatusView(intent: any): IntentStatusView {
+  const raw = String(intent?.estado ?? "").trim().toLowerCase();
+  if (raw === "pendienteaprobaciongerencia") return { stage: "Gerencia", status: "Pendiente de aprobación", tone: "bg-amber-50 text-amber-700" };
+  if (raw === "rechazadalogistica") return { stage: "Logística", status: "Rechazada", tone: "bg-red-50 text-red-700" };
+  if (["", "0", "capturada", "pendiente"].includes(raw)) return { stage: "Calidad", status: "Pendiente de revisión", tone: "bg-blue-50 text-blue-700" };
+  if (["1", "aprobadacalidad"].includes(raw)) return { stage: "Logística", status: "Aprobada por Calidad", tone: "bg-emerald-50 text-emerald-700" };
+  if (["2", "aprobadalogistica"].includes(raw)) return { stage: "Distribución", status: intent?.gerenciaApprovalStatus === "Aprobada" ? "Aprobada por Gerencia" : "Aprobada por Logística", tone: "bg-emerald-50 text-emerald-700" };
+  if (["3", "asignada"].includes(raw)) return { stage: "Coordinación", status: "Asignada", tone: "bg-violet-50 text-violet-700" };
+  if (["4", "coordinada"].includes(raw)) return { stage: "Cierre", status: "Coordinada", tone: "bg-indigo-50 text-indigo-700" };
+  if (["5", "cerrada"].includes(raw)) return { stage: "Finalizada", status: "Cerrada", tone: "bg-gray-100 text-gray-700" };
+  return { stage: "En seguimiento", status: String(intent?.estado || "En revisión"), tone: "bg-gray-100 text-gray-700" };
+}
 interface Props {
   initial?: SubScreen;
 }
 
 export default function SeguimientoPage({ initial = "seguimiento" }: Props) {
-  const donaciones = useDonaciones();
+  
   const [sub, setSub] = useState<SubScreen>(initial);
   const [detalleId, setDetalleId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_SEGUIMIENTO_VACIOS);
+  const [intenciones, setIntenciones] = useState<any[]>([]);
+  const [cargandoIntenciones, setCargandoIntenciones] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    setCargandoIntenciones(true);
+    getIntenciones()
+      .then((items) => { if (active) setIntenciones(items); })
+      .catch((error) => { console.error("No se pudieron cargar las intenciones de seguimiento", error); })
+      .finally(() => { if (active) setCargandoIntenciones(false); });
+    return () => { active = false; };
+  }, [sub]);
   const organizaciones = useMemo(
-    () => organizacionesDesdeDonaciones(donaciones),
-    [donaciones]
+    () => organizacionesDesdeIntenciones(intenciones, MOCK_ORGANIZACIONES),
+    [intenciones]
   );
 
   const organizacionesFiltradas = useMemo(() => {
@@ -143,6 +171,7 @@ export default function SeguimientoPage({ initial = "seguimiento" }: Props) {
               <Truck className="h-4 w-4" />
               Logistica
             </button>
+
             <button
               type="button"
               onClick={() => setSub("distribucion")}
@@ -179,9 +208,35 @@ export default function SeguimientoPage({ initial = "seguimiento" }: Props) {
         />
       </div>
 
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-2 border-b border-gray-100 bg-gray-50/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><h2 className="text-sm font-bold text-gray-900">Intenciones en seguimiento</h2><p className="mt-1 text-xs text-gray-500">Consulta la etapa y el estado actual de cada intención.</p></div>
+          <span className="w-fit rounded-full bg-[#eaf4ee] px-3 py-1 text-xs font-bold text-[#315747]">{intenciones.length} intenciones</span>
+        </div>
+        {cargandoIntenciones ? <div className="p-8 text-center text-sm text-gray-500">Cargando intenciones...</div> : intenciones.length === 0 ? <div className="p-8 text-center text-sm text-gray-500">No hay intenciones registradas.</div> : (
+          <div className="overflow-x-auto">
+            <table className="min-w-[760px] w-full divide-y divide-gray-100 text-left">
+              <thead className="bg-white"><tr>{["Código", "Donante", "Fecha", "Etapa actual", "Estado"].map((label) => <th key={label} className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</th>)}</tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {intenciones.map((intent) => {
+                  const flow = getIntentStatusView(intent);
+                  return <tr key={intent.id} className="transition hover:bg-gray-50/70">
+                    <td className="px-5 py-4 text-sm font-bold text-gray-900">{intent.codigo || `ID: ${intent.id}`}</td>
+                    <td className="px-5 py-4 text-sm text-gray-700">{intent.donante || "—"}</td>
+                    <td className="px-5 py-4 text-sm text-gray-500">{intent.fechaIntencion || intent.fecha || "—"}</td>
+                    <td className="px-5 py-4"><span className="rounded-full bg-[#f0f5f2] px-2.5 py-1 text-xs font-semibold text-[#315747]">{flow.stage}</span></td>
+                    <td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${flow.tone}`}>{flow.status}</span></td>
+                  </tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <section>
         <h2 className="mb-3 text-sm font-semibold text-gray-800">
-          Listado ({organizacionesFiltradas.length}
+          Organizaciones en seguimiento ({organizacionesFiltradas.length}
           {organizacionesFiltradas.length !== organizaciones.length &&
             ` de ${organizaciones.length}`}
           )
@@ -201,3 +256,6 @@ export default function SeguimientoPage({ initial = "seguimiento" }: Props) {
     </div>
   );
 }
+
+
+

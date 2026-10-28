@@ -28,6 +28,7 @@ import {
   Zap
 } from "lucide-react";
 import { getIntenciones, getIntencionById, updateIntencionStatus } from "../services/intencionService";
+import SelectionPlaceholder from "../components/ui/SelectionPlaceholder";
 
 interface Props {
   onVolver: () => void;
@@ -39,6 +40,7 @@ export default function CierrePage({ onVolver }: Props) {
   const [intention, setIntention] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLogisticsModalOpen, setIsLogisticsModalOpen] = useState(false);
+  const [isCommunicationModalOpen, setIsCommunicationModalOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -74,6 +76,10 @@ export default function CierrePage({ onVolver }: Props) {
       const data = await getIntenciones();
       const filtered = data.filter((i: any) => i.estado === 5 || i.estado === "Cerrada");
       setIntentions(filtered);
+      setIntention(null);
+      setSelectedId("");
+      setIsLogisticsModalOpen(false);
+      setIsCommunicationModalOpen(false);
     } catch (e) {
       console.error("Error closing assignment", e);
       alert("Hubo un error al cerrar la asignación.");
@@ -143,6 +149,7 @@ export default function CierrePage({ onVolver }: Props) {
                         {i.codigo || `ID: ${i.id}`}
                       </p>
                       <p className="text-xs text-gray-500 truncate font-medium">{i.donante}</p>
+                      <span className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{String(i.estado) === "5" ? "Cerrada" : String(i.estado || "Cerrada")}</span>
                     </div>
                     <ChevronRight className={`h-4 w-4 transition-transform ${selectedId === i.id.toString() ? "text-emerald-500 translate-x-1" : "text-gray-300 group-hover:text-gray-400"}`} />
                   </button>
@@ -155,24 +162,18 @@ export default function CierrePage({ onVolver }: Props) {
         {/* MAIN CONTENT */}
         <div className="lg:col-span-9">
           {!intention ? (
-            <div className="h-full min-h-[60vh] rounded-3xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center text-center p-12">
-              {isLoading ? (
+            isLoading ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-3xl border border-[#e2ebe5] bg-white text-[#64756b]">
+
                 <div className="flex flex-col items-center gap-4">
                   <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
                   <p className="text-sm font-medium text-gray-500">Cargando expediente de cierre...</p>
                 </div>
-              ) : (
-                <>
-                  <div className="p-4 rounded-full bg-gray-50 mb-4">
-                    <Trophy className="h-12 w-12 text-gray-300" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-800">Ninguna donación seleccionada</h3>
-                  <p className="text-sm text-gray-500 max-w-xs mx-auto mt-2">
-                    Seleccione una donación finalizada para ver el resumen ejecutivo del cierre.
-                  </p>
-                </>
-              )}
-            </div>
+              
+              </div>
+            ) : (
+              <SelectionPlaceholder />
+            )
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
@@ -223,7 +224,7 @@ export default function CierrePage({ onVolver }: Props) {
                   <h2 className="flex items-center gap-2 text-sm font-bold text-gray-800 uppercase tracking-wide">
                     <MessageSquare className="h-4 w-4 text-emerald-500" /> Coordinación Realizada
                   </h2>
-                  <button className="text-xs font-bold text-gray-600 hover:text-emerald-600 flex items-center gap-1 transition-colors">
+                  <button onClick={() => setIsCommunicationModalOpen(true)} className="text-xs font-bold text-gray-600 hover:text-emerald-600 flex items-center gap-1 transition-colors">
                     <ExternalLink className="h-3 w-3" /> Detalle de Comunicación
                   </button>
                 </div>
@@ -386,6 +387,47 @@ export default function CierrePage({ onVolver }: Props) {
         </div>
       </div>
 
+      {isCommunicationModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm" onClick={() => setIsCommunicationModalOpen(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="communication-detail-title" className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl animate-in zoom-in-95 duration-300" onClick={(event) => event.stopPropagation()}>
+            <header className="flex items-start justify-between border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-white px-6 py-5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600">Cierre · Comunicación</p>
+                <h3 id="communication-detail-title" className="mt-1 text-xl font-extrabold text-gray-900">Detalle de comunicación</h3>
+                <p className="mt-1 text-sm text-gray-500">Donación {intention?.codigo || "—"} · {intention?.donante || "Donante"}</p>
+              </div>
+              <button type="button" onClick={() => setIsCommunicationModalOpen(false)} aria-label="Cerrar detalle de comunicación" className="rounded-full p-2 text-gray-500 transition hover:bg-white hover:text-gray-900">
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+            <div className="space-y-6 p-6">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Envíos realizados</p><p className="mt-1 text-2xl font-extrabold text-gray-900">4</p></div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Confirmaciones</p><p className="mt-1 text-2xl font-extrabold text-emerald-800">4 / 4</p></div>
+                <div className="rounded-2xl border border-emerald-100 bg-white p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Estado final</p><span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700"><Check className="h-3.5 w-3.5" /> Confirmado</span></div>
+              </div>
+              <div>
+                <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Secuencia de coordinación</h4>
+                <ol className="space-y-3">
+                  <li className="flex gap-3 rounded-2xl border border-gray-100 p-4">
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Mail className="h-4 w-4" /></span>
+                    <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-gray-800">Coordinación de recojo enviada</p><span className="text-xs text-gray-400">15 sept. · 10:30</span></div><p className="mt-1 text-xs leading-5 text-gray-500">Se compartieron los datos de la donación y la programación de recojo con los contactos involucrados.</p><span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700"><Check className="h-3 w-3" /> Enviado</span></div>
+                  </li>
+                  <li className="flex gap-3 rounded-2xl border border-gray-100 p-4">
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><MessageSquare className="h-4 w-4" /></span>
+                    <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-gray-800">Recepción confirmada</p><span className="text-xs text-gray-400">15 sept. · 11:00</span></div><p className="mt-1 text-xs leading-5 text-gray-500">Los contactos confirmaron la coordinación y la disponibilidad para recibir la donación.</p><span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700"><Check className="h-3 w-3" /> Confirmación registrada</span></div>
+                  </li>
+                </ol>
+              </div>
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Vista previa del mensaje</p>
+                <p className="mt-2 text-sm leading-6 text-gray-700">Se coordinó el recojo de la donación {intention?.codigo || ""}. La recepción y disponibilidad quedaron confirmadas por los contactos involucrados.</p>
+              </div>
+            </div>
+            <footer className="flex justify-end border-t border-gray-100 bg-gray-50 px-6 py-4"><button type="button" onClick={() => setIsCommunicationModalOpen(false)} className="rounded-xl bg-[#315747] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#244536]">Cerrar detalle</button></footer>
+          </section>
+        </div>
+      )}
       {/* LOGISTICS MODAL */}
       {isLogisticsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 backdrop-blur-sm">

@@ -23,6 +23,8 @@ export type EstadoIntencion =
   | "Capturada"
   | "AprobadaCalidad"
   | "AprobadaLogistica"
+  | "PendienteAprobacionGerencia"
+  | "RechazadaLogistica"
   | "Asignada"
   | "Coordinada"
   | "Cerrada";
@@ -210,10 +212,19 @@ export interface Intencion {
   // Datos generales
   donante: string;
   contacto: string;
+  contactoCargo?: string;
+  contactoCorreo?: string;
+  contactoMovil?: string;
   fechaIntencion: string;
+  modalidadIntencion?: "Normal" | "Campaña";
+  fechaInicioCampania?: string;
+  fechaFinCampania?: string;
   canal: Canal;
   responsable: string;
   tipoIntencion: TipoIntencion;
+  organizacionAsignada?: { id?: string; nombre: string; direccion: string; compatibilidad: string; conformidadPorcentaje?: number };
+  fechaAsignacion?: string;
+  porcentajeMerma?: number;
 
   estado: EstadoIntencion;
 
@@ -374,3 +385,6 @@ export const ANTICIPACION: Anticipacion[] = [
   "12 horas",
   "6 horas",
 ];
+
+
+
